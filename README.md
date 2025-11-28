@@ -20,6 +20,10 @@ Application monopage permettant de gérer les appareils en stock et leurs prêts
 ## Démarrage en développement (hot-reload)
 ```
 docker compose --profile dev up --build
+# (optionnel) Appliquer les migrations si tu veux coller au schéma Alembic
+# docker compose exec backend poetry run alembic upgrade head
+# (optionnel) Charger les données de démo
+# docker compose exec backend python init_db.py
 ```
 - API : http://localhost:8000/docs
 - Front : http://localhost:5173 (variable `VITE_API_URL` déjà définie dans le service dev)
@@ -30,6 +34,8 @@ docker compose --profile dev up --build
 ## Démarrage en prod (profil prod)
 ```
 docker compose --profile prod up --build
+# (recommandé) Appliquer les migrations avant démarrage si non déjà fait
+# docker compose exec backend-prod poetry run alembic upgrade head
 ```
 - API : http://localhost:8000
 - Front : http://localhost:4173
