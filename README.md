@@ -35,10 +35,74 @@ docker compose --profile prod up --build
 - Front : http://localhost:4173
 - Auth activée par défaut, basée sur LDAP + JWT (`/auth/token`). Pensez à définir `JWT_SECRET_KEY`.
 
+## Déploiement sur un serveur (ports, CORS, reverse proxy)
+- Backend et front écoutent par défaut sur 8000 (API) et 4173 (front build) en prod. Si seul le port 80 est ouvert, place un reverse proxy (Nginx/Traefik) qui sert le front et proxifie `/api` (ou équivalent) vers le backend.
+  - Exemple de mapping : `https://exemple.ch` → frontend, `https://exemple.ch/api` → proxy vers `backend-prod:8000`.
+  - Dans ce cas, configure `VITE_API_URL` sur l’URL publique (ex: `https://exemple.ch/api`).
+- CORS : actuellement ouvert (`*`). Avec un reverse proxy sur le même domaine, tu peux laisser ainsi ou restreindre à ton domaine via une config FastAPI dédiée si tu le souhaites.
+- Ports :
+  - **Local dev** : front 5173, API 8000, DB 5432 (profil `dev`).
+  - **Serveur dev/test** : même mapping que local ou derrière un reverse proxy selon ta politique d’ouverture de ports.
+  - **Serveur prod** : idéalement via reverse proxy en 80/443 (front + proxy `/api` vers backend).
+
+### Exemple de reverse proxy Nginx (prod et dev)
+Créer un fichier de site Nginx (ex: `/etc/nginx/sites-available/inventory.conf`) :
+```nginx
+server {
+    listen 80;
+    server_name exemple.ch;
+
+    # Redirige vers HTTPS si certifs présents (optionnel)
+    # return 301 https://$host$request_uri;
+
+    # Front (prod) servi par le conteneur frontend sur 4173
+    location / {
+        proxy_pass http://127.0.0.1:4173;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    # API prod (proxy /api vers backend-prod:8000)
+    location /api/ {
+        rewrite ^/api/(.*)$ /$1 break;
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+}
+```
+Activer le site (`ln -s /etc/nginx/sites-available/inventory.conf /etc/nginx/sites-enabled/`) et recharger Nginx.
+
+#### Faire tourner dev et prod sur le même serveur
+- Utilise des ports distincts : par exemple, prod sur 8000/4173, dev sur 8001/5174 (ajuste `docker-compose` ou lance une deuxième stack avec des overrides).
+- Ajoute un second vhost Nginx (ex: `dev.exemple.ch`) pointant vers les ports dev (`proxy_pass http://127.0.0.1:5174` pour le front dev, `/api` vers `http://127.0.0.1:8001`).
+- Dans l’environnement dev du front (frontend/.env), mets `VITE_API_URL` = `https://dev.exemple.ch/api`.
+
+#### Résumé des variables à ajuster
+- Front : `VITE_API_URL` (dans `frontend/.env` ou variable d’env docker).
+- Backend :
+  - Dev (compose) : `DATABASE_URL` pointe par défaut sur `db-dev` (`postgresql+psycopg2://postgres:postgres@db-dev:5432/inventory_dev`)
+  - Prod (compose) : `DATABASE_URL` pointe par défaut sur `db-prod` (`postgresql+psycopg2://postgres:postgres@db-prod:5432/inventory_prod`)
+  - `JWT_SECRET_KEY`, `AUTH_DISABLED` (`false` en prod), `LDAP_*` si utilisé.
+
+#### Bases de données séparées dev/prod
+- Compose définit deux services Postgres avec volumes distincts :
+  - `db-dev` (profil dev) : volume `db-data-dev`, port 5432 exposé.
+  - `db-prod` (profil prod) : volume `db-data-prod`, port 5433 exposé sur l’hôte pour éviter le conflit.
+- En prod/staging, privilégie une base managée externe et remplace `DATABASE_URL` en conséquence.
+
 ## Structure
 - `backend/` : FastAPI, modèles SQLAlchemy, routes (devices, loans, catalog), authentification LDAP/JWT, script `init_db.py`, packaging géré par Poetry (`pyproject.toml`).
 - `frontend/` : Vue 3 + Vuetify, écran unique avec recherche/filtrage, fiches modales (création/édition), prêt/retour, saisie ou scan de numéro d'inventaire.
 - `docker-compose.yml` : services `db`, `backend/backend-prod`, `frontend/frontend-dev` selon le profil.
+
+### Services docker-compose (résumé)
+- `db-dev` : Postgres 15 pour le profil dev, base `inventory_dev` (volume `db-data-dev`).
+- `db-prod` : Postgres 15 pour le profil prod, base `inventory_prod` (volume `db-data-prod`). Ports exposés 5433->5432 pour éviter le conflit local.
+- `backend` (profil `dev`) : API FastAPI avec hot-reload, auth désactivée par défaut, monte le code local (`./backend`).
+- `backend-prod` (profil `prod`) : API FastAPI en mode prod (sans reload, auth activée).
+- `frontend-dev` (profil `dev`) : serveur Vite (Vue 3) avec hot-reload, variable `VITE_API_URL` configurée pour appeler l’API.
+- `frontend` (profil `prod`) : front buildé servi via `serve`, `VITE_API_URL` à définir vers l’API prod.
 
 ## Scripts utiles
 - Backend local hors Docker (Poetry) : `cd backend && poetry install && poetry run uvicorn app.main:app --reload`
@@ -48,6 +112,7 @@ docker compose --profile prod up --build
 ## Notes sur l'authentification
 - Route de token : `POST /auth/token` (OAuth2 password). En mode dev (`AUTH_DISABLED=true`), un token de test est généré sans appel LDAP.
 - Quand Keycloak sera branché, l'API peut recevoir un `sub` et récupérer les attributs LDAP via les hooks déjà prévus (see `app/auth.py`).
+- La variable `ENVIRONMENT` (dev|prod) est lue par l’application pour exposer l’état dans `/health` et pour distinguer certains comportements (ex: `AUTH_DISABLED` typiquement activé en dev). Elle ne remplace pas le choix de profil docker (`--profile dev/prod`) mais sert de flag runtime.
 
 ## Points de vigilance
 - Le code crée la base via `Base.metadata.create_all` au démarrage pour simplifier la mise en route. Prévoir des migrations (Alembic) avant la prod.

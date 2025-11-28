@@ -1,22 +1,37 @@
 version: "3.9"
 
 services:
-  db:
+  db-dev:
     image: postgres:15
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: inventory
+      POSTGRES_DB: inventory_dev
     ports:
       - "5432:5432"
     volumes:
-      - db-data:/var/lib/postgresql/data
+      - db-data-dev:/var/lib/postgresql/data
+    profiles:
+      - dev
+
+  db-prod:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: inventory_prod
+    ports:
+      - "5433:5432"
+    volumes:
+      - db-data-prod:/var/lib/postgresql/data
+    profiles:
+      - prod
 
   backend:
     build: ./backend
     env_file: .env
     environment:
-      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg2://postgres:postgres@db:5432/inventory}
+      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg2://postgres:postgres@db-dev:5432/inventory_dev}
       AUTH_DISABLED: ${AUTH_DISABLED:-true}
       ENVIRONMENT: dev
     volumes:
@@ -25,7 +40,7 @@ services:
     ports:
       - "8000:8000"
     depends_on:
-      - db
+      - db-dev
     profiles:
       - dev
 
@@ -33,14 +48,14 @@ services:
     build: ./backend
     env_file: .env
     environment:
-      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg2://postgres:postgres@db:5432/inventory}
+      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg2://postgres:postgres@db-prod:5432/inventory_prod}
       AUTH_DISABLED: "false"
       ENVIRONMENT: prod
     command: poetry run uvicorn app.main:app --host 0.0.0.0 --port 8000
     ports:
       - "8000:8000"
     depends_on:
-      - db
+      - db-prod
     profiles:
       - prod
 
@@ -65,10 +80,11 @@ services:
       VITE_API_URL: ${VITE_API_URL:-http://backend-prod:8000}
     ports:
       - "4173:4173"
-    depends_on:
+depends_on:
       - backend-prod
     profiles:
       - prod
 
 volumes:
-  db-data:
+  db-data-dev:
+  db-data-prod:
