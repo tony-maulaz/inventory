@@ -1,0 +1,23 @@
+{
+  "name": "inventory-spa",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@mdi/font": "^7.4.47",
+    "axios": "^1.5.1",
+    "vue": "^3.3.4",
+    "vuetify": "^3.3.10"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^4.3.4",
+    "playwright": "^1.57.0",
+    "sass": "^1.69.5",
+    "vite": "^4.4.9"
+  }
+}
