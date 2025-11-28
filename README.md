@@ -8,13 +8,14 @@ Application monopage permettant de gérer les appareils en stock et leurs prêts
 - Ports libres : 5173 (front dev), 4173 (front prod preview), 8000 (API), 5432 (Postgres)
 
 ## Configuration
-1. Copier `.env.example` en `.env` et ajuster au besoin :
-- `DATABASE_URL` : URL SQLAlchemy Postgres
-- `AUTH_DISABLED=true` pour le mode dev sans authentification (un utilisateur simulé est injecté).
-- Variables LDAP (`LDAP_SERVER`, `LDAP_USER_DN_TEMPLATE`, …) pour l'auth réelle.
-- `DEV_ROLES` attendu au format JSON (ex: `["admin"]`).
-- `DEV_USER_ID` pour choisir l'utilisateur de test (semé par `init_db.py`) lorsqu'on est en mode dev sans auth.
-2. (Optionnel) Modifier les données de démonstration dans `backend/init_db.py`.
+1. Copier `.env.example` en `.env` (racine) et ajuster au besoin :
+   - `DATABASE_URL` : URL SQLAlchemy Postgres
+   - `AUTH_DISABLED=true` pour le mode dev sans authentification (un utilisateur simulé est injecté).
+   - Variables LDAP (`LDAP_SERVER`, `LDAP_USER_DN_TEMPLATE`, …) pour l'auth réelle.
+   - `DEV_ROLES` attendu au format JSON (ex: `["admin"]`).
+   - `DEV_USER_ID` pour choisir l'utilisateur de test (semé par `init_db.py`) lorsqu'on est en mode dev sans auth.
+2. Frontend : copier `frontend/.env.example` en `frontend/.env` et définir `VITE_API_URL` vers l'URL publique de l'API (ex: `https://exemple.ch:3000/api` ou `http://localhost:8000`). Le docker-compose lit `VITE_API_URL` depuis l'environnement, sinon valeur par défaut `http://localhost:8000` en dev et `http://backend-prod:8000` en prod.
+3. (Optionnel) Modifier les données de démonstration dans `backend/init_db.py`.
 
 ## Démarrage en développement (hot-reload)
 ```
