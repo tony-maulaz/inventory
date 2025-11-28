@@ -104,6 +104,18 @@ Activer le site (`ln -s /etc/nginx/sites-available/inventory.conf /etc/nginx/sit
 - `frontend-dev` (profil `dev`) : serveur Vite (Vue 3) avec hot-reload, variable `VITE_API_URL` configurée pour appeler l’API.
 - `frontend` (profil `prod`) : front buildé servi via `serve`, `VITE_API_URL` à définir vers l’API prod.
 
+### Migrations (Alembic)
+- Alembic est configuré dans `backend/alembic` avec une migration initiale `0001_initial`.
+- Appliquer les migrations : `cd backend && poetry run alembic upgrade head`
+- Créer une nouvelle migration : `cd backend && poetry run alembic revision --autogenerate -m "message"`
+- L’URL DB utilisée est celle de `DATABASE_URL` (surchargée via `.env` ou variables d’environnement), donc la même commande s’applique en dev/prod selon l’URL active.
+#### Flux recommandé
+- Générer la migration initiale (si tu repars de zéro) :  
+  `cd backend && poetry run alembic revision --autogenerate -m "initial schema"` puis `poetry run alembic upgrade head`
+- Après chaque changement de modèle :  
+  `cd backend && poetry run alembic revision --autogenerate -m "feat: ..."` puis `poetry run alembic upgrade head`
+- Évite de réécrire les anciennes migrations : ajoute-en de nouvelles, sauf en dev jetable où tu droppes la base et régénères tout.
+
 ## Scripts utiles
 - Backend local hors Docker (Poetry) : `cd backend && poetry install && poetry run uvicorn app.main:app --reload`
 - Initialiser la base : `cd backend && poetry run python init_db.py`
