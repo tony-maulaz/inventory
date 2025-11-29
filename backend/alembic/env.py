@@ -1,8 +1,12 @@
 import os
+import sys
 from logging.config import fileConfig
 
 from sqlalchemy import engine_from_config, pool
 from alembic import context
+
+BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+sys.path.insert(0, BASE_DIR)
 
 from app.database import Base
 from app.config import get_settings

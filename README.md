@@ -121,6 +121,7 @@ Activer le site (`ln -s /etc/nginx/sites-available/inventory.conf /etc/nginx/sit
 - Après chaque changement de modèle :  
   `cd backend && poetry run alembic revision --autogenerate -m "feat: ..."` puis `poetry run alembic upgrade head`
 - Évite de réécrire les anciennes migrations : ajoute-en de nouvelles, sauf en dev jetable où tu droppes la base et régénères tout.
+- Dans l’état actuel, l’app crée encore les tables au démarrage (pour simplifier le bootstrap). En prod/staging, il est préférable de s’appuyer uniquement sur Alembic et de ne pas compter sur `create_all`.
 
 ## Scripts utiles
 - Backend local hors Docker (Poetry) : `cd backend && poetry install && poetry run uvicorn app.main:app --reload`
