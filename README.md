@@ -51,6 +51,18 @@ docker compose --profile prod up --build
   - **Serveur dev/test** : même mapping que local ou derrière un reverse proxy selon ta politique d’ouverture de ports.
   - **Serveur prod** : idéalement via reverse proxy en 80/443 (front + proxy `/api` vers backend).
 
+### Modes recommandés
+- **Dev local** : `docker compose --profile dev up --build` (front hot-reload 5173, API 8000). Base dev `db-dev`. Si tu utilises Alembic : `docker compose exec backend poetry run alembic upgrade head` puis `docker compose exec backend python init_db.py` pour les données de démo.
+- **Staging / test sur serveur** : utiliser le profil `prod` (stack identique à la prod) avec un vhost dédié (ex: `dev.exemple.ch`). Commande : `docker compose --profile prod up --build -d`. Côté front, `VITE_API_URL` = `https://dev.exemple.ch/api`. Proxy Nginx : vhost `dev.exemple.ch` vers le front (port 4173 de la stack prod) et `/api` vers le backend (8000).
+- **Prod** : profil `prod` avec les vraies variables (`DATABASE_URL` prod/managée, `JWT_SECRET_KEY`, `AUTH_DISABLED=false`). `VITE_API_URL` = `https://exemple.ch/api`. Proxy Nginx : vhost `exemple.ch` vers le front (4173) et `/api` vers le backend (8000).
+
+### Faire tourner deux stacks prod-like (prod + staging) sur le même serveur
+- Utilise des noms de projet et des ports/env distincts. Exemple :
+  - Prod : `docker compose -p inventory-prod --profile prod up -d` (ports 8000/4173, DB prod)
+  - Staging : ajoute un override (ports 8001/4174, DB dédiée) puis `docker compose -p inventory-staging -f docker-compose.yml -f docker-compose.staging.yml --profile prod up -d`
+- Ajuste `VITE_API_URL` et `DATABASE_URL` pour chaque stack.
+- Nginx : deux vhosts (ex: `exemple.ch` → ports prod, `dev.exemple.ch` → ports staging), chacun avec `/` vers le front correspondant et `/api` vers le backend correspondant.
+
 ### Exemple de reverse proxy Nginx (prod et dev)
 Créer un fichier de site Nginx (ex: `/etc/nginx/sites-available/inventory.conf`) :
 ```nginx

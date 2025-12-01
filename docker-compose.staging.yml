@@ -1,0 +1,42 @@
+services:
+  db-staging:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: inventory_staging
+    ports:
+      - "5434:5432"
+    volumes:
+      - db-data-staging:/var/lib/postgresql/data
+    profiles:
+      - staging
+
+  backend-staging:
+    build: ./backend
+    env_file: .env
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg2://postgres:postgres@db-staging:5432/inventory_staging}
+      AUTH_DISABLED: "false"
+      ENVIRONMENT: staging
+    command: poetry run uvicorn app.main:app --host 0.0.0.0 --port 8000
+    ports:
+      - "8001:8000"
+    depends_on:
+      - db-staging
+    profiles:
+      - staging
+
+  frontend-staging:
+    build: ./frontend
+    environment:
+      VITE_API_URL: ${VITE_API_URL:-http://backend-staging:8000}
+    ports:
+      - "4174:4173"
+    depends_on:
+      - backend-staging
+    profiles:
+      - staging
+
+volumes:
+  db-data-staging:
