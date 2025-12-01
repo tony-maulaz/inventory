@@ -59,7 +59,7 @@ docker compose --profile prod up --build
 ### Faire tourner deux stacks prod-like (prod + staging) sur le même serveur
 - Utilise des noms de projet et des ports/env distincts. Exemple :
   - Prod : `docker compose -p inventory-prod --profile prod up -d` (ports 8000/4173, DB prod)
-  - Staging : ajoute un override (ports 8001/4174, DB dédiée) puis `docker compose -p inventory-staging -f docker-compose.yml -f docker-compose.staging.yml --profile prod up -d`
+  - Staging : `docker compose -p inventory-staging -f docker-compose.yml -f docker-compose.staging.yml --profile staging up -d` (ports 8001/4174, DB staging)
 - Ajuste `VITE_API_URL` et `DATABASE_URL` pour chaque stack.
 - Nginx : deux vhosts (ex: `exemple.ch` → ports prod, `dev.exemple.ch` → ports staging), chacun avec `/` vers le front correspondant et `/api` vers le backend correspondant.
 
@@ -149,6 +149,10 @@ Ajoute un second vhost pour l’environnement dev (ex: `dev.exemple.ch`) si beso
 - Backend local hors Docker (Poetry) : `cd backend && poetry install && poetry run uvicorn app.main:app --reload`
 - Initialiser la base : `cd backend && poetry run python init_db.py`
 - Front local hors Docker : `cd frontend && npm install && npm run dev -- --host`
+- Makefile (tâches docker compose) :
+  - `make dev-up` / `make dev-down` / `make dev-migrate` / `make dev-init`
+  - `make staging-up` / `make staging-down` / `make staging-migrate` / `make staging-init`
+  - `make prod-up` / `make prod-down` / `make prod-migrate`
 
 ## Notes sur l'authentification
 - Route de token : `POST /auth/token` (OAuth2 password). En mode dev (`AUTH_DISABLED=true`), un token de test est généré sans appel LDAP.
