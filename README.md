@@ -79,6 +79,16 @@ server {
 ```
 Activer le site (`ln -s /etc/nginx/sites-available/inventory.conf /etc/nginx/sites-enabled/`) et recharger Nginx.
 
+#### Installation rapide de Nginx sur Ubuntu
+```
+sudo apt update
+sudo apt install -y nginx
+sudo ln -s /etc/nginx/sites-available/inventory.conf /etc/nginx/sites-enabled/
+sudo nginx -t
+sudo systemctl restart nginx
+```
+Ajoute un second vhost pour l’environnement dev (ex: `dev.exemple.ch`) si besoin, en adaptant les `proxy_pass` vers les ports dev.
+
 #### Faire tourner dev et prod sur le même serveur
 - Utilise des ports distincts : par exemple, prod sur 8000/4173, dev sur 8001/5174 (ajuste `docker-compose` ou lance une deuxième stack avec des overrides).
 - Ajoute un second vhost Nginx (ex: `dev.exemple.ch`) pointant vers les ports dev (`proxy_pass http://127.0.0.1:5174` pour le front dev, `/api` vers `http://127.0.0.1:8001`).
