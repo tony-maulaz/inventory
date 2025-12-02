@@ -19,9 +19,10 @@ def apply_dev_migrations():
         conn.execute(text("ALTER TABLE IF EXISTS devices ADD COLUMN IF NOT EXISTS location VARCHAR(200) NULL;"))
 
 
-# Create/patch schema for the demo setup
-apply_dev_migrations()
-Base.metadata.create_all(bind=engine)
+# Create/patch schema only in dev to avoid clashes with Alembic-managed envs
+if settings.environment == "dev":
+    apply_dev_migrations()
+    Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title=settings.app_name, debug=settings.debug)
 
