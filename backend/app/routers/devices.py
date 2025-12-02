@@ -8,6 +8,7 @@ router = APIRouter(prefix="/devices", tags=["devices"])
 
 
 @router.get("/", response_model=schemas.PagedResult)
+@router.get("", include_in_schema=False)  # allow /devices without trailing slash (avoid 307 redirect)
 def list_devices(
     search: str | None = Query(default=None, description="Recherche par nom, numéro ou type"),
     status_id: int | None = None,
