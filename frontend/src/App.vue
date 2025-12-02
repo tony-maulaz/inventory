@@ -388,9 +388,12 @@ onMounted(async () => {
             <template #item.location="{ item }">
               <span class="text-medium-emphasis">{{ item.location || '—' }}</span>
             </template>
+            <template #item.type.name="{ item }">
+              <span class="text-capitalize">{{ item.type?.name || 'Non défini' }}</span>
+            </template>
             <template #item.status.name="{ item }">
-              <v-chip :color="statusColor(item.status.name)" size="small" class="text-capitalize">
-                {{ item.status.name }}
+              <v-chip :color="statusColor(item.status?.name)" size="small" class="text-capitalize">
+                {{ item.status?.name || 'Non défini' }}
               </v-chip>
             </template>
             <template #item.actions="{ item }">
