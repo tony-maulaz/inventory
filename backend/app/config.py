@@ -6,7 +6,7 @@ from pydantic import BaseSettings, Field, validator
 class Settings(BaseSettings):
     app_name: str = "Inventory API"
     debug: bool = False
-    environment: str = Field(default="dev", regex="^(dev|prod)$")
+    environment: str = Field(default="dev", regex="^(dev|prod|staging)$")
 
     database_url: str = "postgresql+psycopg2://postgres:postgres@db:5432/inventory"
 

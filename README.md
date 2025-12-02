@@ -157,7 +157,7 @@ Ajoute un second vhost pour l’environnement dev (ex: `dev.exemple.ch`) si beso
 ## Notes sur l'authentification
 - Route de token : `POST /auth/token` (OAuth2 password). En mode dev (`AUTH_DISABLED=true`), un token de test est généré sans appel LDAP.
 - Quand Keycloak sera branché, l'API peut recevoir un `sub` et récupérer les attributs LDAP via les hooks déjà prévus (see `app/auth.py`).
-- La variable `ENVIRONMENT` (dev|prod) est lue par l’application pour exposer l’état dans `/health` et pour distinguer certains comportements (ex: `AUTH_DISABLED` typiquement activé en dev). Elle ne remplace pas le choix de profil docker (`--profile dev/prod`) mais sert de flag runtime.
+- La variable `ENVIRONMENT` (dev|prod|staging) est lue par l’application pour exposer l’état dans `/health` et pour distinguer certains comportements (ex: `AUTH_DISABLED` typiquement activé en dev). Elle ne remplace pas le choix de profil docker (`--profile dev/prod`) mais sert de flag runtime.
 
 ## Points de vigilance
 - Le code crée la base via `Base.metadata.create_all` au démarrage pour simplifier la mise en route. Prévoir des migrations (Alembic) avant la prod.
