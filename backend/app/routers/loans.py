@@ -9,6 +9,7 @@ router = APIRouter(prefix="/loans", tags=["loans"])
 
 STATUS_AVAILABLE = "available"
 STATUS_LOANED = "loaned"
+STATUS_MAINTENANCE = "maintenance"
 
 
 def _get_status(db: Session, name: str):
@@ -26,8 +27,9 @@ def list_loans(db: Session = Depends(get_db), user=Depends(get_user)):
 @router.post("/loan", response_model=schemas.LoanRead)
 def loan_device(payload: schemas.LoanCreate, db: Session = Depends(get_db), user=Depends(get_user)):
     status_loaned = _get_status(db, STATUS_LOANED)
+    status_maintenance = _get_status(db, STATUS_MAINTENANCE)
     try:
-        return crud.create_loan(db, payload, status_loaned=status_loaned)
+        return crud.create_loan(db, payload, status_loaned=status_loaned, status_maintenance=status_maintenance)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 
@@ -35,8 +37,14 @@ def loan_device(payload: schemas.LoanCreate, db: Session = Depends(get_db), user
 @router.post("/return", response_model=schemas.LoanRead)
 def return_device(payload: schemas.LoanReturn, db: Session = Depends(get_db), user=Depends(get_user)):
     status_available = _get_status(db, STATUS_AVAILABLE)
+    status_maintenance = _get_status(db, STATUS_MAINTENANCE)
     try:
-        return crud.close_loan(db, payload, status_available=status_available)
+        return crud.close_loan(
+            db,
+            payload,
+            status_available=status_available,
+            status_maintenance=status_maintenance,
+        )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 
