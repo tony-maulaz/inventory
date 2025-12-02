@@ -61,6 +61,9 @@ def get_current_user(token: str | None = Depends(oauth2_scheme), settings: Setti
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
+    if not token:
+        # No token provided -> reject
+        raise credentials_exception
     try:
         payload = jwt.decode(token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm])
         username: Optional[str] = payload.get("sub")
