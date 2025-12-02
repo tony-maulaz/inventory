@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import List, Optional, Tuple
 from sqlalchemy import select, or_, func
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from . import models, schemas
 
@@ -23,7 +23,12 @@ def list_devices(
     skip: int = 0,
     limit: int = 50,
 ) -> Tuple[int, List[models.Device]]:
-    stmt = select(models.Device).join(models.Device.type).join(models.Device.status)
+    stmt = (
+        select(models.Device)
+        .options(selectinload(models.Device.type), selectinload(models.Device.status))
+        .join(models.Device.type)
+        .join(models.Device.status)
+    )
     if search:
         like = f"%{search}%"
         stmt = stmt.where(
@@ -110,10 +115,17 @@ def create_status(db: Session, payload: schemas.DeviceStatusCreate) -> models.De
     return obj
 
 
-def create_loan(db: Session, payload: schemas.LoanCreate, status_loaned: models.DeviceStatus) -> models.Loan:
+def create_loan(
+    db: Session,
+    payload: schemas.LoanCreate,
+    status_loaned: models.DeviceStatus,
+    status_maintenance: models.DeviceStatus,
+) -> models.Loan:
     device = db.get(models.Device, payload.device_id)
     if not device:
         raise ValueError("Device not found")
+    if device.status_id == status_maintenance.id:
+        raise ValueError("Device is under maintenance")
     if device.status_id == status_loaned.id:
         raise ValueError("Device already loaned")
 
@@ -126,11 +138,16 @@ def create_loan(db: Session, payload: schemas.LoanCreate, status_loaned: models.
 
 
 def close_loan(
-    db: Session, payload: schemas.LoanReturn, status_available: models.DeviceStatus
+    db: Session,
+    payload: schemas.LoanReturn,
+    status_available: models.DeviceStatus,
+    status_maintenance: models.DeviceStatus,
 ) -> models.Loan:
     device = db.get(models.Device, payload.device_id)
     if not device:
         raise ValueError("Device not found")
+    if device.status_id == status_maintenance.id:
+        raise ValueError("Device is under maintenance")
 
     loan_stmt = (
         select(models.Loan)

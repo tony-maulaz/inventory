@@ -185,7 +185,7 @@ async function deleteDevice() {
 }
 
 function openLoanModal(device) {
-  if (isReadOnly.value) return;
+  if (isReadOnly.value || isMaintenance(device)) return;
   selectedDevice.value = device;
   Object.assign(loanForm, {
     device_id: device.id,
@@ -199,7 +199,7 @@ function openLoanModal(device) {
 }
 
 function openReturnModal(device) {
-  if (isReadOnly.value) return;
+  if (isReadOnly.value || isMaintenance(device)) return;
   selectedDevice.value = device;
   Object.assign(returnForm, {
     device_id: device.id,
@@ -255,6 +255,10 @@ function statusColor(name) {
 
 function isAvailable(device) {
   return device?.status?.name === "available";
+}
+
+function isMaintenance(device) {
+  return device?.status?.name === "maintenance";
 }
 
 function isLoaned(device) {
@@ -405,7 +409,7 @@ onMounted(async () => {
                     size="small"
                     color="primary"
                     @click.stop="openLoanModal(item)"
-                    :disabled="isReadOnly || !isAvailable(item)"
+                    :disabled="isReadOnly || !isAvailable(item) || isMaintenance(item)"
                   >
                     <v-icon icon="mdi-login" />
                   </v-btn>
@@ -420,7 +424,7 @@ onMounted(async () => {
                     color="success"
                     class="ml-1"
                     @click.stop="openReturnModal(item)"
-                    :disabled="isReadOnly || isAvailable(item)"
+                    :disabled="isReadOnly || isAvailable(item) || isMaintenance(item)"
                   >
                     <v-icon icon="mdi-logout" />
                   </v-btn>

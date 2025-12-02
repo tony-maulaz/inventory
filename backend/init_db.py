@@ -10,6 +10,7 @@ DEFAULT_TYPES = [
     {"name": "multimeter", "description": "Multimètres de table ou portables"},
     {"name": "oscilloscope", "description": "Oscilloscopes numériques"},
     {"name": "function-generator", "description": "Générateurs BF/HF"},
+    {"name": "unknown", "description": "Type non défini"},
 ]
 
 DEFAULT_DEVICES = [
@@ -97,10 +98,22 @@ def seed(session: Session):
             inventory_number=device_payload["inventory_number"],
             name=device_payload["name"],
             description=device_payload["description"],
+            location=device_payload.get("location"),
             type_id=type_obj.id,
             status_id=status_obj.id,
         )
         session.add(device)
+    session.commit()
+
+    # Patch existing rows missing foreign keys (possible after older dumps)
+    default_status = statuses["available"]
+    unknown_type = types["unknown"]
+    session.query(models.Device).filter(models.Device.status_id.is_(None)).update(
+        {"status_id": default_status.id}, synchronize_session=False
+    )
+    session.query(models.Device).filter(models.Device.type_id.is_(None)).update(
+        {"type_id": unknown_type.id}, synchronize_session=False
+    )
     session.commit()
 
     for user_payload in DEFAULT_USERS:
