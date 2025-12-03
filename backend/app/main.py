@@ -36,8 +36,11 @@ app.add_middleware(
 
 
 @app.post("/auth/token")
-def auth_token(form_data: OAuth2PasswordRequestForm = Depends()):
-    return login(form_data=form_data)
+def auth_token(
+    form_data: OAuth2PasswordRequestForm = Depends(), settings_dep=Depends(get_settings)
+):
+    # Pass resolved settings explicitly to avoid Depends object
+    return login(form_data=form_data, settings=settings_dep)
 
 
 @app.get("/health")

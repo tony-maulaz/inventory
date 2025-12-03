@@ -135,29 +135,34 @@ def list_roles(db: Session) -> List[models.Role]:
     return db.scalars(select(models.Role).order_by(models.Role.name.asc())).all()
 
 
-def get_user_roles(db: Session, username: str) -> Optional[models.UserRole]:
-    return db.scalar(select(models.UserRole).where(models.UserRole.username == username))
+def get_user(db: Session, username: str) -> Optional[models.User]:
+    return db.scalar(select(models.User).where(models.User.username == username).options(selectinload(models.User.roles)))
 
 
-def upsert_user_roles(
+def upsert_user_with_roles(
     db: Session, username: str, roles: List[str], display_name: Optional[str] = None
-) -> models.UserRole:
-    roles_clean = [r for r in roles if r in ALLOWED_ROLES]
-    record = get_user_roles(db, username)
-    if record:
-        record.roles = ",".join(roles_clean)
-        if display_name is not None:
-            record.display_name = display_name
-    else:
-        record = models.UserRole(username=username, display_name=display_name, roles=",".join(roles_clean))
-        db.add(record)
+) -> models.User:
+    ensure_roles_exist(db)
+    user = get_user(db, username)
+    if not user:
+        user = models.User(username=username, display_name=display_name)
+        db.add(user)
+        db.flush()
+    if display_name is not None:
+        user.display_name = display_name
+    role_objs = db.scalars(select(models.Role).where(models.Role.name.in_(roles))).all()
+    user.roles = role_objs
     db.commit()
-    db.refresh(record)
-    return record
+    db.refresh(user)
+    return user
 
 
-def list_user_roles(db: Session) -> List[models.UserRole]:
-    return db.scalars(select(models.UserRole).order_by(models.UserRole.username.asc())).all()
+def list_users_with_roles(db: Session) -> List[models.User]:
+    return db.scalars(
+        select(models.User)
+        .options(selectinload(models.User.roles))
+        .order_by(models.User.username.asc())
+    ).all()
 
 
 def _check_security(device: models.Device, user_roles: List[str]):

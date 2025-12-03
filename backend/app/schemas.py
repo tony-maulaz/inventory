@@ -152,7 +152,6 @@ class PagedResult(BaseModel):
 
 
 class UserRead(BaseModel):
-    id: int
     username: str
     display_name: Optional[str] = None
     roles: List[str] = []

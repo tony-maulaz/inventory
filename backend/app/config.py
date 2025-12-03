@@ -18,6 +18,8 @@ class Settings(BaseSettings):
     ldap_user_dn_template: str = Field(default="uid={username},ou=people,dc=example,dc=org")
     ldap_search_base: str = Field(default="ou=people,dc=example,dc=org")
     ldap_search_filter: str = Field(default="(uid={username})")
+    ldap_bind_dn: str | None = Field(default=None, env="LDAP_BIND_DN")
+    ldap_bind_password: str | None = Field(default=None, env="LDAP_BIND_PASSWORD")
 
     auth_disabled: bool = False
     dev_user: str = "dev-user"  # fallback name if lookup by ID fails

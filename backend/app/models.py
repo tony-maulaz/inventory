@@ -11,20 +11,25 @@ class Role(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(50), unique=True, nullable=False)
 
+    users = relationship("User", secondary="user_roles", back_populates="roles")
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String(100), unique=True, nullable=False)
+    display_name = Column(String(200), nullable=True)
+
+    roles = relationship("Role", secondary="user_roles", back_populates="users")
+
 
 class UserRole(Base):
     __tablename__ = "user_roles"
 
     id = Column(Integer, primary_key=True, index=True)
-    username = Column(String(100), unique=True, nullable=False)
-    display_name = Column(String(200), nullable=True)
-    roles = Column(String(200), default="", nullable=False)  # comma-separated roles
-
-    @property
-    def roles_list(self):
-        if not self.roles:
-            return []
-        return [part.strip() for part in self.roles.split(",") if part.strip()]
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    role_id = Column(Integer, ForeignKey("roles.id", ondelete="CASCADE"), nullable=False)
 
 
 class DeviceType(Base):
