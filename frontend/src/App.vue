@@ -9,6 +9,7 @@ const total = ref(0);
 const statuses = ref([]);
 const types = ref([]);
 const users = ref([]);
+const managedUsers = ref([]);
 
 const search = ref("");
 const filterStatus = ref(null);
@@ -20,6 +21,7 @@ const deleteDialog = ref(false);
 const loanDialog = ref(false);
 const returnDialog = ref(false);
 const detailDialog = ref(false);
+const userDialog = ref(false);
 
 const selectedDevice = ref(null);
 const deviceForm = reactive({
@@ -29,6 +31,7 @@ const deviceForm = reactive({
   location: "",
   type_id: null,
   status_id: null,
+  security_level: "standard",
 });
 const isEdit = ref(false);
 
@@ -50,6 +53,17 @@ const currentUser = ref({
   username: "dev-user",
   roles: ["admin"], // placeholder; if non-admin, leave empty or remove "admin"
 });
+const securityLevels = [
+  { title: "Standard (tous)", value: "standard" },
+  { title: "Avancé (gestionnaire/expert/admin)", value: "avance" },
+  { title: "Critique (expert/admin)", value: "critique" },
+];
+const roleOptions = [
+  { title: "Employee", value: "employee" },
+  { title: "Gestionnaire", value: "gestionnaire" },
+  { title: "Expert", value: "expert" },
+  { title: "Admin", value: "admin" },
+];
 const isAdmin = computed(() => currentUser.value.roles?.includes("admin"));
 const adminMode = ref(true);
 
@@ -101,6 +115,29 @@ async function loadUsers() {
   }
 }
 
+async function loadManagedUsers() {
+  try {
+    const res = await api.get("/users");
+    managedUsers.value = res.data;
+  } catch (err) {
+    console.error("Impossible de charger les rôles utilisateurs", err);
+  }
+}
+
+async function saveUserRoles(user) {
+  try {
+    const payload = { display_name: user.display_name, roles: user.roles };
+    await api.put(`/users/${user.username}`, payload);
+  } catch (err) {
+    console.error("Erreur lors de la mise à jour des rôles", err);
+  }
+}
+
+async function openUserDialog() {
+  userDialog.value = true;
+  await loadManagedUsers();
+}
+
 async function loadCurrentUser() {
   try {
     const { data } = await api.get("/auth/me");
@@ -138,6 +175,7 @@ function openCreateDialog() {
     location: "",
     type_id: types.value[0]?.id || null,
     status_id: statuses.value[0]?.id || null,
+    security_level: "standard",
   });
   deviceDialog.value = true;
 }
@@ -153,6 +191,7 @@ function openEditDialog(device) {
     location: device.location,
     type_id: device.type.id,
     status_id: device.status.id,
+    security_level: device.security_level || "standard",
   });
   deviceDialog.value = true;
 }
@@ -185,7 +224,7 @@ async function deleteDevice() {
 }
 
 function openLoanModal(device) {
-  if (isReadOnly.value || isMaintenance(device)) return;
+  if (isReadOnly.value || isMaintenance(device) || !canAccessDevice(device)) return;
   selectedDevice.value = device;
   Object.assign(loanForm, {
     device_id: device.id,
@@ -199,7 +238,7 @@ function openLoanModal(device) {
 }
 
 function openReturnModal(device) {
-  if (isReadOnly.value || isMaintenance(device)) return;
+  if (isReadOnly.value || isMaintenance(device) || !canAccessDevice(device)) return;
   selectedDevice.value = device;
   Object.assign(returnForm, {
     device_id: device.id,
@@ -265,6 +304,19 @@ function isLoaned(device) {
   return device?.status?.name === "loaned";
 }
 
+function hasRole(role) {
+  return currentUser.value.roles?.includes(role);
+}
+
+function canAccessDevice(device) {
+  const roles = currentUser.value.roles || [];
+  const level = device?.security_level || "standard";
+  if (level === "standard") return true;
+  if (level === "avance") return roles.some((r) => ["gestionnaire", "expert", "admin"].includes(r));
+  if (level === "critique") return roles.some((r) => ["expert", "admin"].includes(r));
+  return false;
+}
+
 onMounted(async () => {
   await loadCurrentUser();
   await loadCatalog();
@@ -283,6 +335,16 @@ onMounted(async () => {
         <v-chip class="mr-3" color="accent" variant="elevated" prepend-icon="mdi-account">
           {{ currentUser.username }}
         </v-chip>
+        <v-btn
+          v-if="isAdmin"
+          variant="tonal"
+          size="small"
+          class="mr-3"
+          prepend-icon="mdi-account-multiple"
+          @click="openUserDialog"
+        >
+          Gérer les rôles
+        </v-btn>
         <v-switch
           v-if="isAdmin"
           v-model="adminMode"
@@ -381,6 +443,7 @@ onMounted(async () => {
               { title: 'Nom', key: 'name' },
               { title: 'Lieu', key: 'location' },
               { title: 'Type', key: 'type.name' },
+              { title: 'Niveau', key: 'security_level' },
               { title: 'État', key: 'status.name' },
               { title: 'Actions', key: 'actions', sortable: false },
             ]"
@@ -394,6 +457,17 @@ onMounted(async () => {
             </template>
             <template #item.type.name="{ item }">
               <span class="text-capitalize">{{ item.type?.name || 'Non défini' }}</span>
+            </template>
+            <template #item.security_level="{ item }">
+              <v-chip size="small" color="secondary" variant="tonal" class="text-capitalize">
+                {{
+                  item.security_level === 'critique'
+                    ? 'Critique'
+                    : item.security_level === 'avance'
+                      ? 'Avancé'
+                      : 'Standard'
+                }}
+              </v-chip>
             </template>
             <template #item.status.name="{ item }">
               <v-chip :color="statusColor(item.status?.name)" size="small" class="text-capitalize">
@@ -409,7 +483,7 @@ onMounted(async () => {
                     size="small"
                     color="primary"
                     @click.stop="openLoanModal(item)"
-                    :disabled="isReadOnly || !isAvailable(item) || isMaintenance(item)"
+                    :disabled="isReadOnly || !isAvailable(item) || isMaintenance(item) || !canAccessDevice(item)"
                   >
                     <v-icon icon="mdi-login" />
                   </v-btn>
@@ -424,7 +498,7 @@ onMounted(async () => {
                     color="success"
                     class="ml-1"
                     @click.stop="openReturnModal(item)"
-                    :disabled="isReadOnly || isAvailable(item) || isMaintenance(item)"
+                    :disabled="isReadOnly || isAvailable(item) || isMaintenance(item) || !canAccessDevice(item)"
                   >
                     <v-icon icon="mdi-logout" />
                   </v-btn>
@@ -484,6 +558,13 @@ onMounted(async () => {
             item-title="name"
             item-value="id"
             label="Type"
+          />
+          <v-select
+            v-model="deviceForm.security_level"
+            :items="securityLevels"
+            item-title="title"
+            item-value="value"
+            label="Niveau de sécurité"
           />
           <v-select
             v-model="deviceForm.status_id"
@@ -570,6 +651,57 @@ onMounted(async () => {
       </v-card>
     </v-dialog>
 
+    <!-- User role manager -->
+    <v-dialog v-model="userDialog" max-width="720">
+      <v-card>
+        <v-card-title>Gestion des rôles</v-card-title>
+        <v-card-text>
+          <v-alert type="info" variant="tonal" class="mb-3">
+            Seuls les administrateurs peuvent modifier les rôles. Les utilisateurs LDAP doivent exister pour être associés ici.
+          </v-alert>
+          <v-table density="compact">
+            <thead>
+              <tr>
+                <th>Utilisateur</th>
+                <th>Nom affiché</th>
+                <th>Rôles</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="user in managedUsers" :key="user.username">
+                <td class="font-weight-medium">{{ user.username }}</td>
+                <td>
+                  <v-text-field
+                    v-model="user.display_name"
+                    variant="underlined"
+                    density="compact"
+                    hide-details
+                    @change="saveUserRoles(user)"
+                  />
+                </td>
+                <td style="min-width: 260px;">
+                  <v-select
+                    v-model="user.roles"
+                    :items="roleOptions"
+                    multiple
+                    chips
+                    density="compact"
+                    variant="underlined"
+                    hide-details
+                    @update:model-value="() => saveUserRoles(user)"
+                  />
+                </td>
+              </tr>
+            </tbody>
+          </v-table>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn variant="tonal" @click="userDialog = false">Fermer</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
     <!-- Detail dialog -->
     <v-dialog v-model="detailDialog" max-width="700">
       <v-card>
@@ -588,6 +720,18 @@ onMounted(async () => {
             <v-col cols="12" sm="6">
               <div class="text-subtitle-2 mb-1">Type</div>
               <div class="text-body-2">{{ selectedDevice?.type?.name }}</div>
+            </v-col>
+            <v-col cols="12" sm="6">
+              <div class="text-subtitle-2 mb-1">Niveau de sécurité</div>
+              <div class="text-body-2 text-capitalize">
+                {{
+                  selectedDevice?.security_level === 'critique'
+                    ? 'Critique'
+                    : selectedDevice?.security_level === 'avance'
+                      ? 'Avancé'
+                      : 'Standard'
+                }}
+              </div>
             </v-col>
             <v-col cols="12" sm="6">
               <div class="text-subtitle-2 mb-1">Emplacement (stock)</div>

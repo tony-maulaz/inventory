@@ -6,7 +6,7 @@ from sqlalchemy import text
 from .database import Base, engine
 from .config import get_settings
 from .auth import login, get_current_user
-from .routers import devices, loans, catalog
+from .routers import devices, loans, catalog, users
 
 settings = get_settings()
 
@@ -53,3 +53,4 @@ def me(user=Depends(get_current_user)):
 app.include_router(devices.router)
 app.include_router(loans.router)
 app.include_router(catalog.router)
+app.include_router(users.router)

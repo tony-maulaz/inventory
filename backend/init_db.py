@@ -1,9 +1,12 @@
+import os
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 
 from app import models
 from app.database import Base, engine, SessionLocal
 
+BASE_ROLES = ["employee", "gestionnaire", "expert", "admin"]
+SEED_DEMO_DATA = os.getenv("SEED_DEMO_DATA", "true").lower() == "true"
 
 DEFAULT_STATUSES = ["available", "loaned", "maintenance"]
 DEFAULT_TYPES = [
@@ -42,15 +45,15 @@ DEFAULT_DEVICES = [
 
 DEFAULT_USERS = [
     {"username": "aline.bernard", "display_name": "Aline Bernard", "roles": "admin"},
-    {"username": "lucas.durand", "display_name": "Lucas Durand", "roles": "admin"},
-    {"username": "sophie.martin", "display_name": "Sophie Martin", "roles": ""},
-    {"username": "maxime.roche", "display_name": "Maxime Roche", "roles": ""},
-    {"username": "julie.robin", "display_name": "Julie Robin", "roles": ""},
-    {"username": "paul.morel", "display_name": "Paul Morel", "roles": ""},
-    {"username": "lea.mercier", "display_name": "Léa Mercier", "roles": ""},
-    {"username": "quentin.dupont", "display_name": "Quentin Dupont", "roles": ""},
-    {"username": "ines.nguyen", "display_name": "Inès Nguyen", "roles": ""},
-    {"username": "nora.diallo", "display_name": "Nora Diallo", "roles": ""},
+    {"username": "lucas.durand", "display_name": "Lucas Durand", "roles": "expert"},
+    {"username": "sophie.martin", "display_name": "Sophie Martin", "roles": "gestionnaire"},
+    {"username": "maxime.roche", "display_name": "Maxime Roche", "roles": "gestionnaire"},
+    {"username": "julie.robin", "display_name": "Julie Robin", "roles": "employee"},
+    {"username": "paul.morel", "display_name": "Paul Morel", "roles": "employee"},
+    {"username": "lea.mercier", "display_name": "Léa Mercier", "roles": "employee"},
+    {"username": "quentin.dupont", "display_name": "Quentin Dupont", "roles": "employee"},
+    {"username": "ines.nguyen", "display_name": "Inès Nguyen", "roles": "employee"},
+    {"username": "nora.diallo", "display_name": "Nora Diallo", "roles": "employee"},
 ]
 
 
@@ -60,14 +63,19 @@ def ensure_schema():
         conn.execute(text("ALTER TABLE loans ADD COLUMN IF NOT EXISTS due_date TIMESTAMP NULL;"))
         conn.execute(text("ALTER TABLE loans ADD COLUMN IF NOT EXISTS usage_location VARCHAR(200) NULL;"))
         conn.execute(text("ALTER TABLE devices ADD COLUMN IF NOT EXISTS location VARCHAR(200) NULL;"))
+        conn.execute(
+            text("ALTER TABLE devices ADD COLUMN IF NOT EXISTS security_level VARCHAR(20) NOT NULL DEFAULT 'standard';")
+        )
 
 
 def seed(session: Session):
     ensure_schema()
     Base.metadata.create_all(bind=engine)
-
-    # Reset test users to ensure the default set is applied
-    session.query(models.TestUser).delete()
+    # Ensure base roles exist
+    for role_name in BASE_ROLES:
+        existing = session.query(models.Role).filter_by(name=role_name).first()
+        if not existing:
+            session.add(models.Role(name=role_name))
     session.commit()
 
     statuses = {}
@@ -88,22 +96,24 @@ def seed(session: Session):
             session.commit()
         types[type_payload["name"]] = type_obj
 
-    for device_payload in DEFAULT_DEVICES:
-        existing = session.query(models.Device).filter_by(inventory_number=device_payload["inventory_number"]).first()
-        if existing:
-            continue
-        type_obj = types[device_payload["type"]]
-        status_obj = statuses[device_payload["status"]]
-        device = models.Device(
-            inventory_number=device_payload["inventory_number"],
-            name=device_payload["name"],
-            description=device_payload["description"],
-            location=device_payload.get("location"),
-            type_id=type_obj.id,
-            status_id=status_obj.id,
-        )
-        session.add(device)
-    session.commit()
+    if SEED_DEMO_DATA:
+        for device_payload in DEFAULT_DEVICES:
+            existing = session.query(models.Device).filter_by(inventory_number=device_payload["inventory_number"]).first()
+            if existing:
+                continue
+            type_obj = types[device_payload["type"]]
+            status_obj = statuses[device_payload["status"]]
+            device = models.Device(
+                inventory_number=device_payload["inventory_number"],
+                name=device_payload["name"],
+                description=device_payload["description"],
+                location=device_payload.get("location"),
+                type_id=type_obj.id,
+                status_id=status_obj.id,
+                security_level="standard",
+            )
+            session.add(device)
+        session.commit()
 
     # Patch existing rows missing foreign keys (possible after older dumps)
     default_status = statuses["available"]
@@ -114,15 +124,38 @@ def seed(session: Session):
     session.query(models.Device).filter(models.Device.type_id.is_(None)).update(
         {"type_id": unknown_type.id}, synchronize_session=False
     )
+    session.query(models.Device).filter(models.Device.security_level.is_(None)).update(
+        {"security_level": "standard"}, synchronize_session=False
+    )
     session.commit()
 
-    for user_payload in DEFAULT_USERS:
-        existing = session.query(models.TestUser).filter_by(username=user_payload["username"]).first()
-        if existing:
-            continue
-        user = models.TestUser(**user_payload)
-        session.add(user)
-    session.commit()
+    if SEED_DEMO_DATA:
+        # Reset test users to ensure the default set is applied
+        session.query(models.TestUser).delete()
+        session.commit()
+
+        for user_payload in DEFAULT_USERS:
+            existing = session.query(models.TestUser).filter_by(username=user_payload["username"]).first()
+            if existing:
+                continue
+            user = models.TestUser(**user_payload)
+            session.add(user)
+        session.commit()
+
+        for user_payload in DEFAULT_USERS:
+            existing_roles = session.query(models.UserRole).filter_by(username=user_payload["username"]).first()
+            if existing_roles:
+                existing_roles.roles = user_payload["roles"]
+                existing_roles.display_name = user_payload["display_name"]
+            else:
+                session.add(
+                    models.UserRole(
+                        username=user_payload["username"],
+                        display_name=user_payload["display_name"],
+                        roles=user_payload["roles"],
+                    )
+                )
+        session.commit()
 
 
 if __name__ == "__main__":

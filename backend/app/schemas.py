@@ -1,6 +1,20 @@
 from datetime import datetime, date, time
 from typing import Optional, List
+from enum import Enum
 from pydantic import BaseModel, validator
+
+
+class SecurityLevel(str, Enum):
+    standard = "standard"
+    avance = "avance"
+    critique = "critique"
+
+
+class RoleName(str, Enum):
+    employee = "employee"
+    gestionnaire = "gestionnaire"
+    expert = "expert"
+    admin = "admin"
 
 
 class DeviceTypeBase(BaseModel):
@@ -41,6 +55,7 @@ class DeviceBase(BaseModel):
     location: Optional[str] = None
     type_id: int
     status_id: int
+    security_level: SecurityLevel = SecurityLevel.standard
 
 
 class DeviceCreate(DeviceBase):
@@ -54,6 +69,7 @@ class DeviceUpdate(BaseModel):
     location: Optional[str] = None
     type_id: Optional[int] = None
     status_id: Optional[int] = None
+    security_level: Optional[SecurityLevel] = None
 
 
 class DeviceRead(DeviceBase):
@@ -143,6 +159,20 @@ class UserRead(BaseModel):
 
     class Config:
         orm_mode = True
+
+
+class UserRoleRead(BaseModel):
+    username: str
+    display_name: Optional[str] = None
+    roles: List[str] = []
+
+    class Config:
+        orm_mode = True
+
+
+class UserRoleUpdate(BaseModel):
+    display_name: Optional[str] = None
+    roles: List[RoleName]
 
 
 # Resolve forward refs

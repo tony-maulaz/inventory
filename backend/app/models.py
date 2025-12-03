@@ -5,6 +5,28 @@ from sqlalchemy.orm import relationship
 from .database import Base
 
 
+class Role(Base):
+    __tablename__ = "roles"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(50), unique=True, nullable=False)
+
+
+class UserRole(Base):
+    __tablename__ = "user_roles"
+
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String(100), unique=True, nullable=False)
+    display_name = Column(String(200), nullable=True)
+    roles = Column(String(200), default="", nullable=False)  # comma-separated roles
+
+    @property
+    def roles_list(self):
+        if not self.roles:
+            return []
+        return [part.strip() for part in self.roles.split(",") if part.strip()]
+
+
 class DeviceType(Base):
     __tablename__ = "device_types"
 
@@ -35,6 +57,7 @@ class Device(Base):
     location = Column(String(200), nullable=True)
     type_id = Column(Integer, ForeignKey("device_types.id"), nullable=False)
     status_id = Column(Integer, ForeignKey("device_statuses.id"), nullable=False)
+    security_level = Column(String(20), nullable=False, default="standard", server_default="standard")
 
     type = relationship("DeviceType", back_populates="devices")
     status = relationship("DeviceStatus", back_populates="devices")

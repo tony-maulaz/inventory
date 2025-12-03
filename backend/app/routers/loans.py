@@ -29,7 +29,13 @@ def loan_device(payload: schemas.LoanCreate, db: Session = Depends(get_db), user
     status_loaned = _get_status(db, STATUS_LOANED)
     status_maintenance = _get_status(db, STATUS_MAINTENANCE)
     try:
-        return crud.create_loan(db, payload, status_loaned=status_loaned, status_maintenance=status_maintenance)
+        return crud.create_loan(
+            db,
+            payload,
+            status_loaned=status_loaned,
+            status_maintenance=status_maintenance,
+            user_roles=user.get("roles", []),
+        )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 
@@ -44,6 +50,7 @@ def return_device(payload: schemas.LoanReturn, db: Session = Depends(get_db), us
             payload,
             status_available=status_available,
             status_maintenance=status_maintenance,
+            user_roles=user.get("roles", []),
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
@@ -57,6 +64,10 @@ def scan_inventory_number(
     if not device:
         raise HTTPException(status_code=404, detail="Device not found")
     status_available = _get_status(db, STATUS_AVAILABLE)
+    try:
+        crud._check_security(device, user.get("roles", []))
+    except ValueError as exc:
+        raise HTTPException(status_code=403, detail=str(exc))
     action = "loan" if device.status_id == status_available.id else "return"
     return schemas.ScanDecision(
         device_id=device.id,

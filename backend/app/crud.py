@@ -5,6 +5,13 @@ from sqlalchemy.orm import Session, selectinload
 
 from . import models, schemas
 
+ALLOWED_ROLES = {r.value for r in schemas.RoleName}
+SECURITY_RULES = {
+    schemas.SecurityLevel.standard.value: {"min_roles": None},  # everyone
+    schemas.SecurityLevel.avance.value: {"min_roles": {"gestionnaire", "expert", "admin"}},
+    schemas.SecurityLevel.critique.value: {"min_roles": {"expert", "admin"}},
+}
+
 
 def get_device(db: Session, device_id: int) -> Optional[models.Device]:
     return db.get(models.Device, device_id)
@@ -115,15 +122,65 @@ def create_status(db: Session, payload: schemas.DeviceStatusCreate) -> models.De
     return obj
 
 
+# Roles
+def ensure_roles_exist(db: Session):
+    for role in ALLOWED_ROLES:
+        existing = db.scalar(select(models.Role).where(models.Role.name == role))
+        if not existing:
+            db.add(models.Role(name=role))
+    db.commit()
+
+
+def list_roles(db: Session) -> List[models.Role]:
+    return db.scalars(select(models.Role).order_by(models.Role.name.asc())).all()
+
+
+def get_user_roles(db: Session, username: str) -> Optional[models.UserRole]:
+    return db.scalar(select(models.UserRole).where(models.UserRole.username == username))
+
+
+def upsert_user_roles(
+    db: Session, username: str, roles: List[str], display_name: Optional[str] = None
+) -> models.UserRole:
+    roles_clean = [r for r in roles if r in ALLOWED_ROLES]
+    record = get_user_roles(db, username)
+    if record:
+        record.roles = ",".join(roles_clean)
+        if display_name is not None:
+            record.display_name = display_name
+    else:
+        record = models.UserRole(username=username, display_name=display_name, roles=",".join(roles_clean))
+        db.add(record)
+    db.commit()
+    db.refresh(record)
+    return record
+
+
+def list_user_roles(db: Session) -> List[models.UserRole]:
+    return db.scalars(select(models.UserRole).order_by(models.UserRole.username.asc())).all()
+
+
+def _check_security(device: models.Device, user_roles: List[str]):
+    level = device.security_level or schemas.SecurityLevel.standard.value
+    rule = SECURITY_RULES.get(level, SECURITY_RULES[schemas.SecurityLevel.standard.value])
+    required = rule["min_roles"]
+    if required is None:
+        return
+    if not any(r in required for r in user_roles):
+        raise ValueError("Insufficient role for this device")
+
+
 def create_loan(
     db: Session,
     payload: schemas.LoanCreate,
     status_loaned: models.DeviceStatus,
     status_maintenance: models.DeviceStatus,
+    user_roles: List[str],
 ) -> models.Loan:
     device = db.get(models.Device, payload.device_id)
     if not device:
         raise ValueError("Device not found")
+    _check_security(device, user_roles)
     if device.status_id == status_maintenance.id:
         raise ValueError("Device is under maintenance")
     if device.status_id == status_loaned.id:
@@ -142,10 +199,12 @@ def close_loan(
     payload: schemas.LoanReturn,
     status_available: models.DeviceStatus,
     status_maintenance: models.DeviceStatus,
+    user_roles: List[str],
 ) -> models.Loan:
     device = db.get(models.Device, payload.device_id)
     if not device:
         raise ValueError("Device not found")
+    _check_security(device, user_roles)
     if device.status_id == status_maintenance.id:
         raise ValueError("Device is under maintenance")
 
