@@ -21,6 +21,8 @@ class Settings(BaseSettings):
     ldap_bind_dn: str | None = Field(default=None, env="LDAP_BIND_DN")
     ldap_bind_password: str | None = Field(default=None, env="LDAP_BIND_PASSWORD")
 
+    auto_provision_users: bool = Field(default=True, env="AUTO_PROVISION_USERS")
+
     auth_disabled: bool = False
     dev_user: str = "dev-user"  # fallback name if lookup by ID fails
     dev_user_id: int = 1

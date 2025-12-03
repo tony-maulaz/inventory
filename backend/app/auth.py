@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 import logging
 from ldap3.utils.uri import parse_uri
+from sqlalchemy import func, select
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
@@ -192,13 +193,22 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), settings: Settings =
 
     roles = _get_roles_from_db(form_data.username)
     if roles is None or not roles:
-        # If user not present, auto-provision with default role employee
+        if not settings.auto_provision_users:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="User not provisioned. Contact an administrator.",
+            )
+        # Auto-provision user. If first user ever, make admin; otherwise employee.
         try:
             from .database import SessionLocal
 
             with SessionLocal() as db:
                 crud.ensure_roles_exist(db)
-                user = crud.upsert_user_with_roles(db, username=form_data.username, roles=["employee"])
+                has_any_user = db.scalar(select(func.count()).select_from(crud.models.User)) > 0  # type: ignore[attr-defined]
+                default_roles = ["admin"] if not has_any_user else ["employee"]
+                user = crud.upsert_user_with_roles(
+                    db, username=form_data.username, roles=default_roles
+                )
                 roles = [r.name for r in user.roles]
         except Exception:
             roles = ["employee"]

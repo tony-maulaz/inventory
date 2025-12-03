@@ -35,7 +35,7 @@ async function submit() {
   <v-app>
     <div class="login-hero" />
     <v-main class="d-flex align-center justify-center">
-      <v-card class="pa-6" max-width="420">
+      <v-card class="pa-6" width="50%" min-width="420">
         <v-card-title class="text-h5 font-weight-bold mb-4">Connexion</v-card-title>
         <v-alert v-if="error" type="error" variant="tonal" class="mb-3">
           {{ error }}

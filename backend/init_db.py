@@ -6,7 +6,8 @@ from app import models
 from app.database import Base, engine, SessionLocal
 
 BASE_ROLES = ["employee", "gestionnaire", "expert", "admin"]
-SEED_DEMO_DATA = os.getenv("SEED_DEMO_DATA", "true").lower() == "true"
+# Par défaut on ne charge pas les données de démo
+SEED_DEMO_DATA = os.getenv("SEED_DEMO_DATA", "false").lower() == "true"
 
 DEFAULT_STATUSES = ["available", "loaned", "maintenance"]
 DEFAULT_TYPES = [
@@ -68,7 +69,7 @@ def ensure_schema():
         )
 
 
-def seed(session: Session):
+def seed_core(session: Session):
     ensure_schema()
     Base.metadata.create_all(bind=engine)
     # Ensure base roles exist
@@ -96,26 +97,7 @@ def seed(session: Session):
             session.commit()
         types[type_payload["name"]] = type_obj
 
-    if SEED_DEMO_DATA:
-        for device_payload in DEFAULT_DEVICES:
-            existing = session.query(models.Device).filter_by(inventory_number=device_payload["inventory_number"]).first()
-            if existing:
-                continue
-            type_obj = types[device_payload["type"]]
-            status_obj = statuses[device_payload["status"]]
-            device = models.Device(
-                inventory_number=device_payload["inventory_number"],
-                name=device_payload["name"],
-                description=device_payload["description"],
-                location=device_payload.get("location"),
-                type_id=type_obj.id,
-                status_id=status_obj.id,
-                security_level="standard",
-            )
-            session.add(device)
-        session.commit()
-
-    # Patch existing rows missing foreign keys (possible after older dumps)
+    # Patch existing rows missing foreign keys (possible après anciennes bases)
     default_status = statuses["available"]
     unknown_type = types["unknown"]
     session.query(models.Device).filter(models.Device.status_id.is_(None)).update(
@@ -129,39 +111,65 @@ def seed(session: Session):
     )
     session.commit()
 
-    if SEED_DEMO_DATA:
-        # Reset test users to ensure the default set is applied
-        session.query(models.TestUser).delete()
-        session.commit()
 
-        for user_payload in DEFAULT_USERS:
-            existing = session.query(models.TestUser).filter_by(username=user_payload["username"]).first()
-            if existing:
-                continue
-            user = models.TestUser(**user_payload)
-            session.add(user)
-        session.commit()
+def seed_demo(session: Session):
+    statuses = {s.name: s for s in session.query(models.DeviceStatus).all()}
+    types = {t.name: t for t in session.query(models.DeviceType).all()}
 
-        for user_payload in DEFAULT_USERS:
-            existing_roles = session.query(models.UserRole).filter_by(username=user_payload["username"]).first()
-            if existing_roles:
-                existing_roles.roles = user_payload["roles"]
-                existing_roles.display_name = user_payload["display_name"]
-            else:
-                session.add(
-                    models.UserRole(
-                        username=user_payload["username"],
-                        display_name=user_payload["display_name"],
-                        roles=user_payload["roles"],
-                    )
+    for device_payload in DEFAULT_DEVICES:
+        existing = session.query(models.Device).filter_by(inventory_number=device_payload["inventory_number"]).first()
+        if existing:
+            continue
+        type_obj = types[device_payload["type"]]
+        status_obj = statuses[device_payload["status"]]
+        device = models.Device(
+            inventory_number=device_payload["inventory_number"],
+            name=device_payload["name"],
+            description=device_payload["description"],
+            location=device_payload.get("location"),
+            type_id=type_obj.id,
+            status_id=status_obj.id,
+            security_level="standard",
+        )
+        session.add(device)
+    session.commit()
+
+    # Reset test users to ensure the default set is applied
+    session.query(models.TestUser).delete()
+    session.commit()
+
+    for user_payload in DEFAULT_USERS:
+        existing = session.query(models.TestUser).filter_by(username=user_payload["username"]).first()
+        if existing:
+            continue
+        user = models.TestUser(**user_payload)
+        session.add(user)
+    session.commit()
+
+    for user_payload in DEFAULT_USERS:
+        existing_roles = session.query(models.UserRole).filter_by(username=user_payload["username"]).first()
+        if existing_roles:
+            existing_roles.roles = user_payload["roles"]
+            existing_roles.display_name = user_payload["display_name"]
+        else:
+            session.add(
+                models.UserRole(
+                    username=user_payload["username"],
+                    display_name=user_payload["display_name"],
+                    roles=user_payload["roles"],
                 )
-        session.commit()
+            )
+    session.commit()
 
 
 if __name__ == "__main__":
     session = SessionLocal()
     try:
-        seed(session)
-        print("Database initialized with demo data.")
+        seed_core(session)
+        if SEED_DEMO_DATA:
+            seed_demo(session)
+            print("Database initialized with demo data.")
+        else:
+            print("Database initialized (core data only).")
     finally:
         session.close()
