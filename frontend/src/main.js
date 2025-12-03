@@ -6,6 +6,7 @@ import "vuetify/styles";
 import "@mdi/font/css/materialdesignicons.css";
 
 import App from "./App.vue";
+import router from "./router";
 
 const palette = {
   primary: "#1f4b99",
@@ -49,4 +50,4 @@ const vuetify = createVuetify({
   },
 });
 
-createApp(App).use(vuetify).mount("#app");
+createApp(App).use(router).use(vuetify).mount("#app");

@@ -161,6 +161,7 @@ Ajoute un second vhost pour l’environnement dev (ex: `dev.exemple.ch`) si beso
 - Rôles supportés : `employee`, `gestionnaire`, `expert`, `admin` (stockés en base dans `user_roles`). Seul `admin` peut modifier les rôles via l’API `/users`.
 - Niveaux de sécurité des appareils : `standard` (tous), `avance` (gestionnaire/expert/admin), `critique` (expert/admin). Le prêt/retour est bloqué backend + frontend selon ce niveau.
 - Seed : `SEED_DEMO_DATA=true|false` (par défaut true). Quand false, `init_db.py` crée uniquement les rôles/types/statuts sans injecter les appareils et utilisateurs de démo.
+- Front : une page `/login` permet de récupérer un token (`/auth/token`) et de l’appliquer aux appels API; le bouton “Déconnexion” vide le token (stockage `localStorage`).
 
 ## Points de vigilance
 - Le code crée la base via `Base.metadata.create_all` au démarrage pour simplifier la mise en route. Prévoir des migrations (Alembic) avant la prod.
