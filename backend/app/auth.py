@@ -11,6 +11,7 @@ from ldap3 import Connection, Server, ALL
 
 from .config import get_settings, Settings
 from . import crud
+from .database import SessionLocal
 
 # Use uvicorn logger so messages show up in container logs without extra config
 logger = logging.getLogger("uvicorn.error")
@@ -18,27 +19,20 @@ logger = logging.getLogger("uvicorn.error")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token", auto_error=False)
 
 
-def authenticate_with_ldap(username: str, password: str, settings: Settings) -> bool:
-    # Confirm debug flag is read from env/settings
-    logger.warning("Auth debug flag: debug=%s", settings.debug)
-
+def ldap_auth_and_profile(username: str, password: str, settings: Settings) -> dict:
+    """
+    Recherche l'utilisateur via le compte de service (si fourni), bind avec son mot de passe,
+    et retourne les attributs utiles.
+    """
+    search_filter = settings.ldap_search_filter.format(username=username)
     uri = parse_uri(settings.ldap_server)
     use_ssl = uri["ssl"]
     server = Server(settings.ldap_server, get_info=ALL, use_ssl=use_ssl)
-    search_filter = settings.ldap_search_filter.format(username=username)
-    user_dn = settings.ldap_user_dn_template.format(username=username)
 
+    # Si compte de service, on l'utilise pour trouver le DN de l'utilisateur
+    user_dn = settings.ldap_user_dn_template.format(username=username)
     try:
         if settings.ldap_bind_dn and settings.ldap_bind_password:
-            # Bind with service account then search for user's DN
-            logger.warning(
-                "LDAP service bind attempt: server=%s, bind_dn=%s, search_base=%s, search_filter=%s, use_ssl=%s",
-                settings.ldap_server,
-                settings.ldap_bind_dn,
-                settings.ldap_search_base,
-                search_filter,
-                use_ssl,
-            )
             with Connection(
                 server,
                 user=settings.ldap_bind_dn,
@@ -48,56 +42,39 @@ def authenticate_with_ldap(username: str, password: str, settings: Settings) -> 
                 found = conn.search(
                     search_base=settings.ldap_search_base,
                     search_filter=search_filter,
-                    attributes=["cn", "uid", "sAMAccountName", "distinguishedName"],
+                    attributes=["cn", "uid", "sAMAccountName", "distinguishedName", "mail", "givenName", "sn"],
                 )
                 if not found or not conn.entries:
-                    logger.warning(
-                        "LDAP search returned no entries for filter=%s", search_filter
-                    )
-                    return False
+                    raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid LDAP credentials")
                 user_dn = str(conn.entries[0].entry_dn)
-                logger.warning("LDAP user DN found: %s", user_dn)
-            # Now bind as the user with provided password
-            logger.warning(
-                "LDAP user bind attempt: server=%s, user_dn=%s, use_ssl=%s",
-                settings.ldap_server,
-                user_dn,
-                use_ssl,
+
+        # Bind avec les credentials utilisateur
+        with Connection(server, user=user_dn, password=password, auto_bind=True) as conn_user:
+            found = conn_user.search(
+                search_base=settings.ldap_search_base,
+                search_filter=search_filter,
+                attributes=["displayName", "givenName", "sn", "cn", "mail", "sAMAccountName"],
             )
-            with Connection(server, user=user_dn, password=password, auto_bind=True) as conn_user:
-                conn_user.search(
-                    search_base=settings.ldap_search_base,
-                    search_filter=search_filter,
-                    attributes=["cn", "uid", "sAMAccountName"],
-                )
-                return True
-        else:
-            # Direct user bind
-            logger.warning(
-                "LDAP direct bind attempt: server=%s, user_dn=%s, search_base=%s, search_filter=%s, use_ssl=%s",
-                settings.ldap_server,
-                user_dn,
-                settings.ldap_search_base,
-                search_filter,
-                use_ssl,
-            )
-            with Connection(server, user=user_dn, password=password, auto_bind=True) as conn:
-                conn.search(
-                    search_base=settings.ldap_search_base,
-                    search_filter=search_filter,
-                    attributes=["cn", "uid", "sAMAccountName"],
-                )
-                return True
+            if not found or not conn_user.entries:
+                raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid LDAP credentials")
+            attrs = conn_user.entries[0].entry_attributes_as_dict
+            first_name = attrs.get("givenName")
+            last_name = attrs.get("sn")
+            email = attrs.get("mail")
+            username_out = attrs.get("sAMAccountName") or username
+            display_name = (attrs.get("displayName") or " ".join(filter(None, [first_name, last_name])) or username_out)
+            return {
+                "username": username_out,
+                "email": email,
+                "first_name": first_name,
+                "last_name": last_name,
+                "display_name": display_name,
+            }
+    except HTTPException:
+        raise
     except Exception as exc:
-        logger.warning(
-            "LDAP authentication failed: server=%s, port=%s, user_dn=%s, error=%s, debug=%s",
-            settings.ldap_server,
-            getattr(server, "port", None),
-            user_dn,
-            str(exc),
-            settings.debug,
-        )
-        return False
+        logger.warning("LDAP auth/profile error: %s", exc)
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid LDAP credentials")
 
 
 def create_access_token(data: dict, settings: Settings) -> str:
@@ -108,34 +85,21 @@ def create_access_token(data: dict, settings: Settings) -> str:
     return encoded_jwt
 
 
-def _get_roles_from_db(username: str):
+def _get_user_from_db(username: str):
     try:
-        from .database import SessionLocal
-
         with SessionLocal() as db:
-            user = crud.get_user(db, username)
-            if user:
-                return [r.name for r in user.roles]
+            return crud.get_user(db, username)
     except Exception:
         return None
-    return None
 
 
 def get_current_user(token: str | None = Depends(oauth2_scheme), settings: Settings = Depends(get_settings)):
     if settings.auth_disabled:
-        # Dev mode: no token required, fallback to seeded test user or config.
+        # Dev mode: no token required, fallback to seeded test user if present in DB.
         try:
-            from .database import SessionLocal
             from . import models
 
             with SessionLocal() as db:
-                user = crud.get_user(db, settings.dev_user)
-                if user:
-                    return {
-                        "username": user.username,
-                        "display_name": user.display_name,
-                        "roles": [r.name for r in user.roles],
-                    }
                 test_user = db.get(models.TestUser, settings.dev_user_id)
                 if not test_user:
                     test_user = db.query(models.TestUser).order_by(models.TestUser.id.asc()).first()
@@ -166,20 +130,21 @@ def get_current_user(token: str | None = Depends(oauth2_scheme), settings: Setti
     except JWTError:
         raise credentials_exception
     roles = payload.get("roles", []) or []
-    db_roles = _get_roles_from_db(username)
-    display_name = None
-    if db_roles is not None:
-        roles = db_roles
-        try:
-            from .database import SessionLocal
-
-            with SessionLocal() as db:
-                record = crud.get_user_roles(db, username)
-                if record:
-                    display_name = record.display_name
-        except Exception:
-            pass
-    return {"username": username, "roles": roles, "display_name": display_name}
+    db_user = _get_user_from_db(username)
+    display_name = db_user.display_name if db_user else None
+    email = db_user.email if db_user else None
+    first_name = db_user.first_name if db_user else None
+    last_name = db_user.last_name if db_user else None
+    if db_user:
+        roles = [r.name for r in db_user.roles] or roles
+    return {
+        "username": username,
+        "roles": roles,
+        "display_name": display_name,
+        "email": email,
+        "first_name": first_name,
+        "last_name": last_name,
+    }
 
 
 def login(form_data: OAuth2PasswordRequestForm = Depends(), settings: Settings = Depends(get_settings)):
@@ -188,10 +153,14 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), settings: Settings =
         access_token = create_access_token({"sub": user["username"], "roles": user["roles"]}, settings)
         return {"access_token": access_token, "token_type": "bearer"}
 
-    if not authenticate_with_ldap(form_data.username, form_data.password, settings):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid LDAP credentials")
+    profile = ldap_auth_and_profile(form_data.username, form_data.password, settings=settings)
+    user_username = profile.get("username") or form_data.username
+    email = profile.get("email")
+    first_name = profile.get("first_name")
+    last_name = profile.get("last_name")
 
-    roles = _get_roles_from_db(form_data.username)
+    db_user = _get_user_from_db(user_username)
+    roles = [r.name for r in db_user.roles] if db_user else None
     if roles is None or not roles:
         if not settings.auto_provision_users:
             raise HTTPException(
@@ -200,17 +169,32 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), settings: Settings =
             )
         # Auto-provision user. If first user ever, make admin; otherwise employee.
         try:
-            from .database import SessionLocal
-
             with SessionLocal() as db:
                 crud.ensure_roles_exist(db)
                 has_any_user = db.scalar(select(func.count()).select_from(crud.models.User)) > 0  # type: ignore[attr-defined]
                 default_roles = ["admin"] if not has_any_user else ["employee"]
                 user = crud.upsert_user_with_roles(
-                    db, username=form_data.username, roles=default_roles
+                    db,
+                    username=user_username,
+                    roles=default_roles,
+                    email=email,
+                    first_name=first_name,
+                    last_name=last_name,
                 )
                 roles = [r.name for r in user.roles]
+                db_user = user
         except Exception:
             roles = ["employee"]
-    access_token = create_access_token({"sub": form_data.username, "roles": roles}, settings)
+    else:
+        # Mettre à jour les infos si manquantes
+        if db_user:
+            with SessionLocal() as db:
+                crud.update_user_profile(
+                    db,
+                    username=user_username,
+                    email=email,
+                    first_name=first_name,
+                    last_name=last_name,
+                )
+    access_token = create_access_token({"sub": user_username, "roles": roles}, settings)
     return {"access_token": access_token, "token_type": "bearer"}

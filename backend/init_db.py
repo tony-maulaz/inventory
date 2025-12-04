@@ -45,16 +45,16 @@ DEFAULT_DEVICES = [
 ]
 
 DEFAULT_USERS = [
-    {"username": "aline.bernard", "display_name": "Aline Bernard", "roles": "admin"},
-    {"username": "lucas.durand", "display_name": "Lucas Durand", "roles": "expert"},
-    {"username": "sophie.martin", "display_name": "Sophie Martin", "roles": "gestionnaire"},
-    {"username": "maxime.roche", "display_name": "Maxime Roche", "roles": "gestionnaire"},
-    {"username": "julie.robin", "display_name": "Julie Robin", "roles": "employee"},
-    {"username": "paul.morel", "display_name": "Paul Morel", "roles": "employee"},
-    {"username": "lea.mercier", "display_name": "Léa Mercier", "roles": "employee"},
-    {"username": "quentin.dupont", "display_name": "Quentin Dupont", "roles": "employee"},
-    {"username": "ines.nguyen", "display_name": "Inès Nguyen", "roles": "employee"},
-    {"username": "nora.diallo", "display_name": "Nora Diallo", "roles": "employee"},
+    {"username": "aline.bernard", "first_name": "Aline", "last_name": "Bernard", "email": "aline.bernard@example.com", "roles": "admin"},
+    {"username": "lucas.durand", "first_name": "Lucas", "last_name": "Durand", "email": "lucas.durand@example.com", "roles": "expert"},
+    {"username": "sophie.martin", "first_name": "Sophie", "last_name": "Martin", "email": "sophie.martin@example.com", "roles": "gestionnaire"},
+    {"username": "maxime.roche", "first_name": "Maxime", "last_name": "Roche", "email": "maxime.roche@example.com", "roles": "gestionnaire"},
+    {"username": "julie.robin", "first_name": "Julie", "last_name": "Robin", "email": "julie.robin@example.com", "roles": "employee"},
+    {"username": "paul.morel", "first_name": "Paul", "last_name": "Morel", "email": "paul.morel@example.com", "roles": "employee"},
+    {"username": "lea.mercier", "first_name": "Léa", "last_name": "Mercier", "email": "lea.mercier@example.com", "roles": "employee"},
+    {"username": "quentin.dupont", "first_name": "Quentin", "last_name": "Dupont", "email": "quentin.dupont@example.com", "roles": "employee"},
+    {"username": "ines.nguyen", "first_name": "Inès", "last_name": "Nguyen", "email": "ines.nguyen@example.com", "roles": "employee"},
+    {"username": "nora.diallo", "first_name": "Nora", "last_name": "Diallo", "email": "nora.diallo@example.com", "roles": "employee"},
 ]
 
 
@@ -115,6 +115,7 @@ def seed_core(session: Session):
 def seed_demo(session: Session):
     statuses = {s.name: s for s in session.query(models.DeviceStatus).all()}
     types = {t.name: t for t in session.query(models.DeviceType).all()}
+    roles = {r.name: r for r in session.query(models.Role).all()}
 
     for device_payload in DEFAULT_DEVICES:
         existing = session.query(models.Device).filter_by(inventory_number=device_payload["inventory_number"]).first()
@@ -142,23 +143,32 @@ def seed_demo(session: Session):
         existing = session.query(models.TestUser).filter_by(username=user_payload["username"]).first()
         if existing:
             continue
-        user = models.TestUser(**user_payload)
+        display_name = f"{user_payload.get('first_name','')} {user_payload.get('last_name','')}".strip()
+        user = models.TestUser(
+            username=user_payload["username"],
+            display_name=display_name or user_payload["username"],
+            roles=user_payload["roles"],
+        )
         session.add(user)
     session.commit()
 
+    # Seed real users + roles table for demo
     for user_payload in DEFAULT_USERS:
-        existing_roles = session.query(models.UserRole).filter_by(username=user_payload["username"]).first()
-        if existing_roles:
-            existing_roles.roles = user_payload["roles"]
-            existing_roles.display_name = user_payload["display_name"]
-        else:
-            session.add(
-                models.UserRole(
-                    username=user_payload["username"],
-                    display_name=user_payload["display_name"],
-                    roles=user_payload["roles"],
-                )
+        user = session.query(models.User).filter_by(username=user_payload["username"]).first()
+        if not user:
+            user = models.User(
+                username=user_payload["username"],
+                email=user_payload.get("email"),
+                first_name=user_payload.get("first_name"),
+                last_name=user_payload.get("last_name"),
             )
+            session.add(user)
+            session.commit()
+        # Attach role
+        role_name = user_payload["roles"] or "employee"
+        role_obj = roles.get(role_name) or session.query(models.Role).filter_by(name=role_name).first()
+        if role_obj and role_obj not in user.roles:
+            user.roles.append(role_obj)
     session.commit()
 
 

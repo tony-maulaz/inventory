@@ -10,7 +10,7 @@ dev-up:
 	$(DC) --profile dev up --build
 
 dev-down:
-	$(DC) --profile dev down
+	$(DC) --profile dev down -v
 
 dev-migrate:
 	$(DC) --profile dev exec backend poetry run alembic upgrade head

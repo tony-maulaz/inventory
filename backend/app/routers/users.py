@@ -22,6 +22,9 @@ def list_users(db: Session = Depends(get_db), user=Depends(get_user)):
     return [
         schemas.UserRoleRead(
             username=u.username,
+            email=u.email,
+            first_name=u.first_name,
+            last_name=u.last_name,
             display_name=u.display_name,
             roles=[r.name for r in u.roles],
         )
@@ -33,5 +36,19 @@ def list_users(db: Session = Depends(get_db), user=Depends(get_user)):
 def upsert_user_roles(username: str, payload: schemas.UserRoleUpdate, db: Session = Depends(get_db), user=Depends(get_user)):
     _require_admin(user)
     crud.ensure_roles_exist(db)
-    record = crud.upsert_user_with_roles(db, username=username, roles=payload.roles, display_name=payload.display_name)
-    return schemas.UserRoleRead(username=record.username, display_name=record.display_name, roles=[r.name for r in record.roles])
+    record = crud.upsert_user_with_roles(
+        db,
+        username=username,
+        roles=payload.roles,
+        email=payload.email,
+        first_name=payload.first_name,
+        last_name=payload.last_name,
+    )
+    return schemas.UserRoleRead(
+        username=record.username,
+        email=record.email,
+        first_name=record.first_name,
+        last_name=record.last_name,
+        display_name=record.display_name,
+        roles=[r.name for r in record.roles],
+    )

@@ -162,6 +162,9 @@ class UserRead(BaseModel):
 
 class UserRoleRead(BaseModel):
     username: str
+    email: Optional[str] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
     display_name: Optional[str] = None
     roles: List[str] = []
 
@@ -170,7 +173,9 @@ class UserRoleRead(BaseModel):
 
 
 class UserRoleUpdate(BaseModel):
-    display_name: Optional[str] = None
+    email: Optional[str] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
     roles: List[RoleName]
 
 

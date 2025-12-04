@@ -19,9 +19,16 @@ class User(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String(100), unique=True, nullable=False)
-    display_name = Column(String(200), nullable=True)
+    email = Column(String(200), nullable=True)
+    first_name = Column(String(200), nullable=True)
+    last_name = Column(String(200), nullable=True)
 
     roles = relationship("Role", secondary="user_roles", back_populates="users")
+
+    @property
+    def display_name(self) -> str:
+        parts = [p for p in [self.first_name, self.last_name] if p]
+        return " ".join(parts) if parts else self.username
 
 
 class UserRole(Base):

@@ -40,7 +40,9 @@ def upgrade():
         "users",
         sa.Column("id", sa.Integer(), primary_key=True),
         sa.Column("username", sa.String(length=100), nullable=False, unique=True),
-        sa.Column("display_name", sa.String(length=200), nullable=True),
+        sa.Column("email", sa.String(length=200), nullable=True),
+        sa.Column("first_name", sa.String(length=200), nullable=True),
+        sa.Column("last_name", sa.String(length=200), nullable=True),
     )
     op.create_table(
         "user_roles",

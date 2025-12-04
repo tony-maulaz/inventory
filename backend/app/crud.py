@@ -140,16 +140,25 @@ def get_user(db: Session, username: str) -> Optional[models.User]:
 
 
 def upsert_user_with_roles(
-    db: Session, username: str, roles: List[str], display_name: Optional[str] = None
+    db: Session,
+    username: str,
+    roles: List[str],
+    email: Optional[str] = None,
+    first_name: Optional[str] = None,
+    last_name: Optional[str] = None,
 ) -> models.User:
     ensure_roles_exist(db)
     user = get_user(db, username)
     if not user:
-        user = models.User(username=username, display_name=display_name)
+        user = models.User(username=username)
         db.add(user)
         db.flush()
-    if display_name is not None:
-        user.display_name = display_name
+    if email is not None:
+        user.email = email
+    if first_name is not None:
+        user.first_name = first_name
+    if last_name is not None:
+        user.last_name = last_name
     role_objs = db.scalars(select(models.Role).where(models.Role.name.in_(roles))).all()
     user.roles = role_objs
     db.commit()
@@ -163,6 +172,32 @@ def list_users_with_roles(db: Session) -> List[models.User]:
         .options(selectinload(models.User.roles))
         .order_by(models.User.username.asc())
     ).all()
+
+
+def update_user_profile(
+    db: Session,
+    username: str,
+    email: Optional[str],
+    first_name: Optional[str],
+    last_name: Optional[str],
+) -> Optional[models.User]:
+    user = get_user(db, username)
+    if not user:
+        return None
+    changed = False
+    if email and not user.email:
+        user.email = email
+        changed = True
+    if first_name and not user.first_name:
+        user.first_name = first_name
+        changed = True
+    if last_name and not user.last_name:
+        user.last_name = last_name
+        changed = True
+    if changed:
+        db.commit()
+        db.refresh(user)
+    return user
 
 
 def _check_security(device: models.Device, user_roles: List[str]):

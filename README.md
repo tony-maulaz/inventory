@@ -23,13 +23,13 @@ docker compose --profile dev up --build
 # (optionnel) Appliquer les migrations si tu veux coller au schéma Alembic
 # docker compose exec backend poetry run alembic upgrade head
 # (optionnel) Charger les données de démo
-# docker compose exec backend python init_db.py
+# docker compose exec backend poetry run python create_fake_data.py
 ```
 - API : http://localhost:8000/docs
 - Front : http://localhost:5173 (variable `VITE_API_URL` déjà définie dans le service dev)
 - Auth désactivée par défaut en dev (`AUTH_DISABLED=true`).
 - Base : `postgres/postgres`, DB `inventory`.
-- Pour remplir des données exemples : `docker compose exec backend python init_db.py`
+- Pour remplir des données exemples : `docker compose exec backend poetry run python create_fake_data.py`
 
 ## Démarrage en prod (profil prod)
 ```
