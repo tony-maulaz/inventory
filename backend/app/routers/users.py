@@ -34,6 +34,20 @@ def list_users(db: Session = Depends(get_db), user=Depends(get_user)):
     ]
 
 
+@router.get("/options", response_model=List[schemas.UserRead])
+def list_users_for_loans(db: Session = Depends(get_db), user=Depends(get_user)):
+    # Accessible aux utilisateurs authentifiés : retourne la liste des utilisateurs connus (LDAP provisionnés)
+    records = crud.list_users_with_roles(db)
+    return [
+        schemas.UserRead(
+            username=u.username,
+            display_name=u.display_name,
+            roles=[r.name for r in u.roles],
+        )
+        for u in records
+    ]
+
+
 @router.put("/{username}", response_model=schemas.UserRoleRead)
 def upsert_user_roles(
     username: str,

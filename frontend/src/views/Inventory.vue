@@ -121,7 +121,8 @@ async function loadCatalog() {
 
 async function loadUsers() {
   try {
-    const res = await api.get("/catalog/users");
+    // Use real users from backend (provisionnés via LDAP), not test users
+    const res = await api.get("/users/options");
     users.value = res.data;
   } catch (err) {
     if (!handleAuthError(err)) {
