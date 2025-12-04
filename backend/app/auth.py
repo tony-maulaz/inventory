@@ -7,7 +7,8 @@ from sqlalchemy import func, select
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import JWTError, jwt
-from ldap3 import Connection, Server, ALL
+import ssl
+from ldap3 import Connection, Server, ALL, Tls
 
 from .config import get_settings, Settings
 from . import crud
@@ -24,10 +25,11 @@ def ldap_auth_and_profile(username: str, password: str, settings: Settings) -> d
     Recherche l'utilisateur via le compte de service (si fourni), bind avec son mot de passe,
     et retourne les attributs utiles.
     """
+    tls_config = Tls(validate=ssl.CERT_NONE)
     search_filter = settings.ldap_search_filter.format(username=username)
     uri = parse_uri(settings.ldap_server)
     use_ssl = uri["ssl"]
-    server = Server(settings.ldap_server, get_info=ALL, use_ssl=use_ssl)
+    server = Server(settings.ldap_server, get_info=ALL, use_ssl=use_ssl, tls=tls_config)
 
     # Si compte de service, on l'utilise pour trouver le DN de l'utilisateur
     user_dn = settings.ldap_user_dn_template.format(username=username)

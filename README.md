@@ -162,6 +162,8 @@ Ajoute un second vhost pour l’environnement dev (ex: `dev.exemple.ch`) si beso
 - Niveaux de sécurité des appareils : `standard` (tous), `avance` (gestionnaire/expert/admin), `critique` (expert/admin). Le prêt/retour est bloqué backend + frontend selon ce niveau.
 - Seed : `SEED_DEMO_DATA=true|false` (par défaut false maintenant). `init_db.py` crée toujours schéma + rôles/types/statuts; les données de démo (appareils/users) ne sont injectées que si tu le forces ou via `poetry run python create_fake_data.py`.
 - Front : une page `/login` permet de récupérer un token (`/auth/token`) et de l’appliquer aux appels API; le bouton “Déconnexion” vide le token (stockage `localStorage`).
+- Debug LDAP : depuis le conteneur backend, `docker compose --profile dev exec backend poetry run python ldap_debug.py` (ou équivalent staging/prod) pour tester la configuration LDAP/service account.
+- `docker compose -p inventory-staging -f docker-compose.yml -f docker-compose.staging.yml --profile staging exec backend-staging poetry run python ldap_debug.py` pour le staging.
 
 ## Points de vigilance
 - Le code crée la base via `Base.metadata.create_all` au démarrage pour simplifier la mise en route. Prévoir des migrations (Alembic) avant la prod.

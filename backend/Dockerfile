@@ -17,5 +17,6 @@ COPY app ./app
 COPY init_db.py .
 COPY alembic.ini .
 COPY alembic ./alembic
+COPY ldap_debug.py .
 
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

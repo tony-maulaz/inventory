@@ -1,7 +1,8 @@
 import logging
 import os
 import getpass
-from ldap3 import Server, Connection, ALL
+import ssl
+from ldap3 import Server, Connection, ALL, Tls
 
 from app.config import get_settings
 
@@ -30,7 +31,9 @@ def main():
         f"  search_filter: {search_filter}\n"
     )
 
-    server = Server(settings.ldap_server, get_info=ALL)
+    tls_config = Tls(validate=ssl.CERT_NONE)
+    use_ssl = settings.ldap_server.startswith("ldaps://")
+    server = Server(settings.ldap_server, get_info=ALL, use_ssl=use_ssl, tls=tls_config)
     try:
         with Connection(server, user=bind_dn, password=bind_pw, auto_bind=True) as conn:
             ok = conn.search(
