@@ -12,6 +12,11 @@ RUN pip install --no-cache-dir poetry
 COPY pyproject.toml poetry.lock ./
 RUN poetry install --no-root
 
+# Trust HEIG internal CAs (for LDAP) baked into the image
+RUN mkdir -p /usr/local/share/ca-certificates/extra
+COPY HEIG-RootCA.crt HEIG-SCA01.crt /usr/local/share/ca-certificates/extra/
+RUN update-ca-certificates
+
 # App source
 COPY app ./app
 COPY init_db.py .

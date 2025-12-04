@@ -106,6 +106,94 @@ Ajoute un second vhost pour l’environnement dev (ex: `dev.exemple.ch`) si beso
 - Ajoute un second vhost Nginx (ex: `dev.exemple.ch`) pointant vers les ports dev (`proxy_pass http://127.0.0.1:5174` pour le front dev, `/api` vers `http://127.0.0.1:8001`).
 - Dans l’environnement dev du front (frontend/.env), mets `VITE_API_URL` = `https://dev.exemple.ch/api`.
 
+### Activer TLS en staging avec un certificat autosigné
+Pour tester en HTTPS sur l’environnement staging (ex: `dev.exemple.ch`) sans certificat officiel :
+1) Générer un certificat autosigné (valable 1 an) et la clé privée :
+```
+sudo mkdir -p /etc/nginx/ssl
+sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+  -keyout /etc/nginx/ssl/dev-exemple-ch.key \
+  -out /etc/nginx/ssl/dev-exemple-ch.crt \
+  -subj "/CN=dev.exemple.ch"
+```
+2) Ajouter un vhost TLS pour le staging (adapter le nom de domaine et les ports si besoin) :
+```nginx
+server {
+    listen 443 ssl;
+    server_name dev.exemple.ch;
+
+    ssl_certificate     /etc/nginx/ssl/dev-exemple-ch.crt;
+    ssl_certificate_key /etc/nginx/ssl/dev-exemple-ch.key;
+
+    # Front (staging)
+    location / {
+        proxy_pass http://127.0.0.1:4174;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    # API staging
+    location /api/ {
+        rewrite ^/api/(.*)$ /$1 break;
+        proxy_pass http://127.0.0.1:8001;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+}
+
+# Redirection HTTP → HTTPS
+server {
+    listen 80;
+    server_name dev.exemple.ch;
+    return 301 https://$host$request_uri;
+}
+```
+3) Tester et recharger Nginx :
+```
+sudo nginx -t
+sudo systemctl reload nginx
+```
+4) Pour éviter l’avertissement navigateur, importe le certificat autosigné dans le trousseau de confiance de ta machine (ou, pour un test ponctuel, utilise `curl -k https://dev.exemple.ch/api/health`).
+
+#### Pas de nom de domaine, accès par IP ?
+Oui. Génère un certif avec l’IP en SubjectAltName (remplace `203.0.113.10` par l’IP de ton serveur) :
+```
+sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+  -keyout /etc/nginx/ssl/staging-ip.key \
+  -out /etc/nginx/ssl/staging-ip.crt \
+  -subj "/CN=203.0.113.10" \
+  -addext "subjectAltName=IP:203.0.113.10"
+```
+Puis adapte le `server_name` du vhost Nginx (ou laisse `_` pour un catch-all) et teste/recharge Nginx. Les navigateurs montreront toujours un avertissement tant que le certif n’est pas ajouté à ton trousseau de confiance.
+
+### LDAP avec CA interne (HEIG)
+Si le serveur LDAP présente un cert signé par la PKI interne, ajoute la chaîne CA dans le conteneur backend pour éviter les erreurs TLS :
+0) Récupérer la chaîne CA :
+   - Via la PKI HEIG (URLs habituelles) :  
+     `curl -O http://pki.heig-vd.ch/pki/HEIG-RootCA.crt`  
+     `curl -O http://pki.heig-vd.ch/pki/HEIG-SCA01.crt` (ou `AD-SCA01.crt` selon l’arbo)
+   - Ou extraire depuis le serveur LDAP :  
+     `openssl s_client -showcerts -connect ldap.heig-vd.ch:636 -servername ldap.heig-vd.ch </dev/null | tee ldap-chain.pem`  
+     puis couper/coller les blocs `-----BEGIN CERTIFICATE-----` dans deux fichiers (root + intermédiaire).
+1) Récupère le cert racine/intermédiaire (ex: `HEIG-RootCA` / `HEIG-SCA01`) en `.crt`.
+2) Copie-le dans le conteneur et mets à jour le trust store (profil dev) :
+```
+docker compose --profile dev exec -T backend sh -c \
+  'mkdir -p /usr/local/share/ca-certificates/extra && cat > /usr/local/share/ca-certificates/extra/heig-ca.crt && update-ca-certificates'
+# colle le contenu PEM de la CA puis Ctrl+D
+```
+3) Pour prod/staging, adapte le service cible :
+```
+docker compose --profile prod exec -T backend-prod sh -c '...update-ca-certificates'
+# ou
+docker compose --profile staging exec -T backend-staging sh -c '...update-ca-certificates'
+```
+4) Relance le service backend si besoin, puis rejoue `ldap_debug.py` ou l’auth (`/auth/token`).
+> Note : copier la CA “à la main” dans un conteneur est éphémère. Pour persister, soit :
+- Monte la CA depuis l’hôte (ex: `./certs/heig-ca.crt:/usr/local/share/ca-certificates/extra/heig-ca.crt:ro`) et exécute `update-ca-certificates` au démarrage (entrypoint ou commande manuelle).
+- Ou bake la CA dans l’image (copie du `.crt` dans `backend/` + instructions `COPY` et `update-ca-certificates` dans le `Dockerfile`), puis rebuild l’image backend.
+- Déjà fait dans ce repo : les fichiers `HEIG-RootCA.crt` et `HEIG-SCA01.crt` à la racine sont copiés au build (`backend/Dockerfile`), et `update-ca-certificates` est exécuté. Après un `docker compose build` (dev/prod/staging) les conteneurs backend font confiance à la PKI HEIG sans action manuelle.
+
 #### Résumé des variables à ajuster
 - Front : `VITE_API_URL` (dans `frontend/.env` ou variable d’env docker).
 - Backend :

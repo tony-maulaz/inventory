@@ -28,7 +28,9 @@ services:
       - prod
 
   backend:
-    build: ./backend
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
     env_file: .env
     environment:
       DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg2://postgres:postgres@db-dev:5432/inventory_dev}
@@ -45,7 +47,9 @@ services:
       - dev
 
   backend-prod:
-    build: ./backend
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
     env_file: .env
     environment:
       DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg2://postgres:postgres@db-prod:5432/inventory_prod}
