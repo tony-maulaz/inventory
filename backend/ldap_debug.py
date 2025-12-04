@@ -31,8 +31,12 @@ def main():
         f"  search_filter: {search_filter}\n"
     )
 
-    # Force TLS 1.2 to match the AD endpoint cipher suite/expectations
-    tls_config = Tls(validate=ssl.CERT_NONE, version=ssl.PROTOCOL_TLSv1_2)
+    # Force TLS 1.2 and a common cipher to match the AD endpoint expectations
+    tls_config = Tls(
+        validate=ssl.CERT_NONE,
+        version=ssl.PROTOCOL_TLSv1_2,
+        ciphers="ECDHE-RSA-AES256-GCM-SHA384",
+    )
     use_ssl = settings.ldap_server.startswith("ldaps://")
     server = Server(settings.ldap_server, get_info=ALL, use_ssl=use_ssl, tls=tls_config)
     try:
