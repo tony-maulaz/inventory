@@ -249,7 +249,7 @@ async function deleteDevice() {
 }
 
 function openLoanModal(device) {
-  if (isReadOnly.value || isMaintenance(device) || !canAccessDevice(device)) return;
+  if (!canLoan(device)) return;
   selectedDevice.value = device;
   Object.assign(loanForm, {
     device_id: device.id,
@@ -263,7 +263,7 @@ function openLoanModal(device) {
 }
 
 function openReturnModal(device) {
-  if (isReadOnly.value || isMaintenance(device) || !canAccessDevice(device)) return;
+  if (!canReturn(device)) return;
   selectedDevice.value = device;
   Object.assign(returnForm, {
     device_id: device.id,
@@ -340,6 +340,14 @@ function canAccessDevice(device) {
   if (level === "avance") return roles.some((r) => ["gestionnaire", "expert", "admin"].includes(r));
   if (level === "critique") return roles.some((r) => ["expert", "admin"].includes(r));
   return false;
+}
+
+function canLoan(device) {
+  return !isMaintenance(device) && isAvailable(device) && canAccessDevice(device);
+}
+
+function canReturn(device) {
+  return !isMaintenance(device) && isLoaned(device) && canAccessDevice(device);
 }
 
 function logout() {
@@ -531,7 +539,7 @@ onMounted(async () => {
                     size="small"
                     color="primary"
                     @click.stop="openLoanModal(item)"
-                    :disabled="isReadOnly || !isAvailable(item) || isMaintenance(item) || !canAccessDevice(item)"
+                    :disabled="!canLoan(item)"
                   >
                     <v-icon icon="mdi-login" />
                   </v-btn>
@@ -546,7 +554,7 @@ onMounted(async () => {
                     color="success"
                     class="ml-1"
                     @click.stop="openReturnModal(item)"
-                    :disabled="isReadOnly || isAvailable(item) || isMaintenance(item) || !canAccessDevice(item)"
+                    :disabled="!canReturn(item)"
                   >
                     <v-icon icon="mdi-logout" />
                   </v-btn>

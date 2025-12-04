@@ -15,7 +15,9 @@ STATUS_MAINTENANCE = "maintenance"
 def _get_status(db: Session, name: str):
     status = crud.get_status_by_name(db, name)
     if not status:
-        raise HTTPException(status_code=500, detail=f"Status '{name}' not found. Run init_db.")
+        raise HTTPException(
+            status_code=500, detail=f"Status '{name}' not found. Run init_db."
+        )
     return status
 
 
@@ -25,7 +27,9 @@ def list_loans(db: Session = Depends(get_db), user=Depends(get_user)):
 
 
 @router.post("/loan", response_model=schemas.LoanRead)
-def loan_device(payload: schemas.LoanCreate, db: Session = Depends(get_db), user=Depends(get_user)):
+def loan_device(
+    payload: schemas.LoanCreate, db: Session = Depends(get_db), user=Depends(get_user)
+):
     status_loaned = _get_status(db, STATUS_LOANED)
     status_maintenance = _get_status(db, STATUS_MAINTENANCE)
     try:
@@ -41,7 +45,9 @@ def loan_device(payload: schemas.LoanCreate, db: Session = Depends(get_db), user
 
 
 @router.post("/return", response_model=schemas.LoanRead)
-def return_device(payload: schemas.LoanReturn, db: Session = Depends(get_db), user=Depends(get_user)):
+def return_device(
+    payload: schemas.LoanReturn, db: Session = Depends(get_db), user=Depends(get_user)
+):
     status_available = _get_status(db, STATUS_AVAILABLE)
     status_maintenance = _get_status(db, STATUS_MAINTENANCE)
     try:

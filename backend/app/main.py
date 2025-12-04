@@ -14,9 +14,21 @@ settings = get_settings()
 def apply_dev_migrations():
     # Minimal migrations for dev environments to add new columns if missing
     with engine.begin() as conn:
-        conn.execute(text("ALTER TABLE IF EXISTS loans ADD COLUMN IF NOT EXISTS due_date TIMESTAMP NULL;"))
-        conn.execute(text("ALTER TABLE IF EXISTS loans ADD COLUMN IF NOT EXISTS usage_location VARCHAR(200) NULL;"))
-        conn.execute(text("ALTER TABLE IF EXISTS devices ADD COLUMN IF NOT EXISTS location VARCHAR(200) NULL;"))
+        conn.execute(
+            text(
+                "ALTER TABLE IF EXISTS loans ADD COLUMN IF NOT EXISTS due_date TIMESTAMP NULL;"
+            )
+        )
+        conn.execute(
+            text(
+                "ALTER TABLE IF EXISTS loans ADD COLUMN IF NOT EXISTS usage_location VARCHAR(200) NULL;"
+            )
+        )
+        conn.execute(
+            text(
+                "ALTER TABLE IF EXISTS devices ADD COLUMN IF NOT EXISTS location VARCHAR(200) NULL;"
+            )
+        )
 
 
 # Create/patch schema only in dev to avoid clashes with Alembic-managed envs

@@ -1,5 +1,13 @@
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, UniqueConstraint, Text
+from sqlalchemy import (
+    Column,
+    Integer,
+    String,
+    DateTime,
+    ForeignKey,
+    UniqueConstraint,
+    Text,
+)
 from sqlalchemy.orm import relationship
 
 from .database import Base
@@ -35,8 +43,12 @@ class UserRole(Base):
     __tablename__ = "user_roles"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    role_id = Column(Integer, ForeignKey("roles.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    role_id = Column(
+        Integer, ForeignKey("roles.id", ondelete="CASCADE"), nullable=False
+    )
 
 
 class DeviceType(Base):
@@ -69,7 +81,9 @@ class Device(Base):
     location = Column(String(200), nullable=True)
     type_id = Column(Integer, ForeignKey("device_types.id"), nullable=False)
     status_id = Column(Integer, ForeignKey("device_statuses.id"), nullable=False)
-    security_level = Column(String(20), nullable=False, default="standard", server_default="standard")
+    security_level = Column(
+        String(20), nullable=False, default="standard", server_default="standard"
+    )
 
     type = relationship("DeviceType", back_populates="devices")
     status = relationship("DeviceStatus", back_populates="devices")

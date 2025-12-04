@@ -4,6 +4,7 @@ Usage :
     poetry run python create_fake_data.py
 Les constantes viennent de init_db.py.
 """
+
 from app.database import SessionLocal
 from init_db import seed_demo, seed_core
 

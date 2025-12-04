@@ -1,7 +1,7 @@
 """Initial schema
 
 Revision ID: 0001_initial
-Revises: 
+Revises:
 Create Date: 2025-11-27
 """
 
@@ -47,8 +47,18 @@ def upgrade():
     op.create_table(
         "user_roles",
         sa.Column("id", sa.Integer(), primary_key=True),
-        sa.Column("user_id", sa.Integer(), sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False),
-        sa.Column("role_id", sa.Integer(), sa.ForeignKey("roles.id", ondelete="CASCADE"), nullable=False),
+        sa.Column(
+            "user_id",
+            sa.Integer(),
+            sa.ForeignKey("users.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
+        sa.Column(
+            "role_id",
+            sa.Integer(),
+            sa.ForeignKey("roles.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
         sa.UniqueConstraint("user_id", "role_id"),
     )
 
@@ -60,9 +70,21 @@ def upgrade():
         sa.Column("name", sa.String(length=200), nullable=False),
         sa.Column("description", sa.Text(), nullable=True),
         sa.Column("location", sa.String(length=200), nullable=True),
-        sa.Column("type_id", sa.Integer(), sa.ForeignKey("device_types.id"), nullable=False),
-        sa.Column("status_id", sa.Integer(), sa.ForeignKey("device_statuses.id"), nullable=False),
-        sa.Column("security_level", sa.String(length=20), nullable=False, server_default="standard"),
+        sa.Column(
+            "type_id", sa.Integer(), sa.ForeignKey("device_types.id"), nullable=False
+        ),
+        sa.Column(
+            "status_id",
+            sa.Integer(),
+            sa.ForeignKey("device_statuses.id"),
+            nullable=False,
+        ),
+        sa.Column(
+            "security_level",
+            sa.String(length=20),
+            nullable=False,
+            server_default="standard",
+        ),
         sa.UniqueConstraint("inventory_number", name="uq_inventory_number"),
     )
 
@@ -70,18 +92,29 @@ def upgrade():
     op.create_table(
         "loans",
         sa.Column("id", sa.Integer(), primary_key=True),
-        sa.Column("device_id", sa.Integer(), sa.ForeignKey("devices.id"), nullable=False, index=True),
+        sa.Column(
+            "device_id",
+            sa.Integer(),
+            sa.ForeignKey("devices.id"),
+            nullable=False,
+            index=True,
+        ),
         sa.Column("borrower", sa.String(length=100), nullable=False),
         sa.Column("borrower_display_name", sa.String(length=200), nullable=True),
         sa.Column("usage_location", sa.String(length=200), nullable=True),
-        sa.Column("loaned_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
+        sa.Column(
+            "loaned_at", sa.DateTime(), nullable=False, server_default=sa.func.now()
+        ),
         sa.Column("due_date", sa.DateTime(), nullable=True),
         sa.Column("returned_at", sa.DateTime(), nullable=True),
         sa.Column("notes", sa.Text(), nullable=True),
     )
 
     # Seed roles
-    op.bulk_insert(roles_table, [{"name": r} for r in ["employee", "gestionnaire", "expert", "admin"]])
+    op.bulk_insert(
+        roles_table,
+        [{"name": r} for r in ["employee", "gestionnaire", "expert", "admin"]],
+    )
 
 
 def downgrade():

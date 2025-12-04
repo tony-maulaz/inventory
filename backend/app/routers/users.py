@@ -11,7 +11,9 @@ router = APIRouter(prefix="/users", tags=["users"])
 def _require_admin(user):
     roles = set(user.get("roles", []))
     if "admin" not in roles:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin role required")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Admin role required"
+        )
 
 
 @router.get("/", response_model=List[schemas.UserRoleRead])
@@ -33,7 +35,12 @@ def list_users(db: Session = Depends(get_db), user=Depends(get_user)):
 
 
 @router.put("/{username}", response_model=schemas.UserRoleRead)
-def upsert_user_roles(username: str, payload: schemas.UserRoleUpdate, db: Session = Depends(get_db), user=Depends(get_user)):
+def upsert_user_roles(
+    username: str,
+    payload: schemas.UserRoleUpdate,
+    db: Session = Depends(get_db),
+    user=Depends(get_user),
+):
     _require_admin(user)
     crud.ensure_roles_exist(db)
     record = crud.upsert_user_with_roles(

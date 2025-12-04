@@ -45,27 +45,99 @@ DEFAULT_DEVICES = [
 ]
 
 DEFAULT_USERS = [
-    {"username": "aline.bernard", "first_name": "Aline", "last_name": "Bernard", "email": "aline.bernard@example.com", "roles": "admin"},
-    {"username": "lucas.durand", "first_name": "Lucas", "last_name": "Durand", "email": "lucas.durand@example.com", "roles": "expert"},
-    {"username": "sophie.martin", "first_name": "Sophie", "last_name": "Martin", "email": "sophie.martin@example.com", "roles": "gestionnaire"},
-    {"username": "maxime.roche", "first_name": "Maxime", "last_name": "Roche", "email": "maxime.roche@example.com", "roles": "gestionnaire"},
-    {"username": "julie.robin", "first_name": "Julie", "last_name": "Robin", "email": "julie.robin@example.com", "roles": "employee"},
-    {"username": "paul.morel", "first_name": "Paul", "last_name": "Morel", "email": "paul.morel@example.com", "roles": "employee"},
-    {"username": "lea.mercier", "first_name": "Léa", "last_name": "Mercier", "email": "lea.mercier@example.com", "roles": "employee"},
-    {"username": "quentin.dupont", "first_name": "Quentin", "last_name": "Dupont", "email": "quentin.dupont@example.com", "roles": "employee"},
-    {"username": "ines.nguyen", "first_name": "Inès", "last_name": "Nguyen", "email": "ines.nguyen@example.com", "roles": "employee"},
-    {"username": "nora.diallo", "first_name": "Nora", "last_name": "Diallo", "email": "nora.diallo@example.com", "roles": "employee"},
+    {
+        "username": "aline.bernard",
+        "first_name": "Aline",
+        "last_name": "Bernard",
+        "email": "aline.bernard@example.com",
+        "roles": "admin",
+    },
+    {
+        "username": "lucas.durand",
+        "first_name": "Lucas",
+        "last_name": "Durand",
+        "email": "lucas.durand@example.com",
+        "roles": "expert",
+    },
+    {
+        "username": "sophie.martin",
+        "first_name": "Sophie",
+        "last_name": "Martin",
+        "email": "sophie.martin@example.com",
+        "roles": "gestionnaire",
+    },
+    {
+        "username": "maxime.roche",
+        "first_name": "Maxime",
+        "last_name": "Roche",
+        "email": "maxime.roche@example.com",
+        "roles": "gestionnaire",
+    },
+    {
+        "username": "julie.robin",
+        "first_name": "Julie",
+        "last_name": "Robin",
+        "email": "julie.robin@example.com",
+        "roles": "employee",
+    },
+    {
+        "username": "paul.morel",
+        "first_name": "Paul",
+        "last_name": "Morel",
+        "email": "paul.morel@example.com",
+        "roles": "employee",
+    },
+    {
+        "username": "lea.mercier",
+        "first_name": "Léa",
+        "last_name": "Mercier",
+        "email": "lea.mercier@example.com",
+        "roles": "employee",
+    },
+    {
+        "username": "quentin.dupont",
+        "first_name": "Quentin",
+        "last_name": "Dupont",
+        "email": "quentin.dupont@example.com",
+        "roles": "employee",
+    },
+    {
+        "username": "ines.nguyen",
+        "first_name": "Inès",
+        "last_name": "Nguyen",
+        "email": "ines.nguyen@example.com",
+        "roles": "employee",
+    },
+    {
+        "username": "nora.diallo",
+        "first_name": "Nora",
+        "last_name": "Diallo",
+        "email": "nora.diallo@example.com",
+        "roles": "employee",
+    },
 ]
 
 
 def ensure_schema():
     # Add new columns if they are missing (simple dev migration helper)
     with engine.begin() as conn:
-        conn.execute(text("ALTER TABLE loans ADD COLUMN IF NOT EXISTS due_date TIMESTAMP NULL;"))
-        conn.execute(text("ALTER TABLE loans ADD COLUMN IF NOT EXISTS usage_location VARCHAR(200) NULL;"))
-        conn.execute(text("ALTER TABLE devices ADD COLUMN IF NOT EXISTS location VARCHAR(200) NULL;"))
         conn.execute(
-            text("ALTER TABLE devices ADD COLUMN IF NOT EXISTS security_level VARCHAR(20) NOT NULL DEFAULT 'standard';")
+            text("ALTER TABLE loans ADD COLUMN IF NOT EXISTS due_date TIMESTAMP NULL;")
+        )
+        conn.execute(
+            text(
+                "ALTER TABLE loans ADD COLUMN IF NOT EXISTS usage_location VARCHAR(200) NULL;"
+            )
+        )
+        conn.execute(
+            text(
+                "ALTER TABLE devices ADD COLUMN IF NOT EXISTS location VARCHAR(200) NULL;"
+            )
+        )
+        conn.execute(
+            text(
+                "ALTER TABLE devices ADD COLUMN IF NOT EXISTS security_level VARCHAR(20) NOT NULL DEFAULT 'standard';"
+            )
         )
 
 
@@ -90,7 +162,11 @@ def seed_core(session: Session):
 
     types = {}
     for type_payload in DEFAULT_TYPES:
-        type_obj = session.query(models.DeviceType).filter_by(name=type_payload["name"]).first()
+        type_obj = (
+            session.query(models.DeviceType)
+            .filter_by(name=type_payload["name"])
+            .first()
+        )
         if not type_obj:
             type_obj = models.DeviceType(**type_payload)
             session.add(type_obj)
@@ -118,7 +194,11 @@ def seed_demo(session: Session):
     roles = {r.name: r for r in session.query(models.Role).all()}
 
     for device_payload in DEFAULT_DEVICES:
-        existing = session.query(models.Device).filter_by(inventory_number=device_payload["inventory_number"]).first()
+        existing = (
+            session.query(models.Device)
+            .filter_by(inventory_number=device_payload["inventory_number"])
+            .first()
+        )
         if existing:
             continue
         type_obj = types[device_payload["type"]]
@@ -140,7 +220,11 @@ def seed_demo(session: Session):
     session.commit()
 
     for user_payload in DEFAULT_USERS:
-        existing = session.query(models.TestUser).filter_by(username=user_payload["username"]).first()
+        existing = (
+            session.query(models.TestUser)
+            .filter_by(username=user_payload["username"])
+            .first()
+        )
         if existing:
             continue
         display_name = f"{user_payload.get('first_name','')} {user_payload.get('last_name','')}".strip()
@@ -154,7 +238,11 @@ def seed_demo(session: Session):
 
     # Seed real users + roles table for demo
     for user_payload in DEFAULT_USERS:
-        user = session.query(models.User).filter_by(username=user_payload["username"]).first()
+        user = (
+            session.query(models.User)
+            .filter_by(username=user_payload["username"])
+            .first()
+        )
         if not user:
             user = models.User(
                 username=user_payload["username"],
@@ -166,7 +254,10 @@ def seed_demo(session: Session):
             session.commit()
         # Attach role
         role_name = user_payload["roles"] or "employee"
-        role_obj = roles.get(role_name) or session.query(models.Role).filter_by(name=role_name).first()
+        role_obj = (
+            roles.get(role_name)
+            or session.query(models.Role).filter_by(name=role_name).first()
+        )
         if role_obj and role_obj not in user.roles:
             user.roles.append(role_obj)
     session.commit()

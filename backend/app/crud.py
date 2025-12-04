@@ -8,7 +8,9 @@ from . import models, schemas
 ALLOWED_ROLES = {r.value for r in schemas.RoleName}
 SECURITY_RULES = {
     schemas.SecurityLevel.standard.value: {"min_roles": None},  # everyone
-    schemas.SecurityLevel.avance.value: {"min_roles": {"gestionnaire", "expert", "admin"}},
+    schemas.SecurityLevel.avance.value: {
+        "min_roles": {"gestionnaire", "expert", "admin"}
+    },
     schemas.SecurityLevel.critique.value: {"min_roles": {"expert", "admin"}},
 }
 
@@ -17,8 +19,12 @@ def get_device(db: Session, device_id: int) -> Optional[models.Device]:
     return db.get(models.Device, device_id)
 
 
-def get_device_by_inventory(db: Session, inventory_number: str) -> Optional[models.Device]:
-    stmt = select(models.Device).where(models.Device.inventory_number == inventory_number)
+def get_device_by_inventory(
+    db: Session, inventory_number: str
+) -> Optional[models.Device]:
+    stmt = select(models.Device).where(
+        models.Device.inventory_number == inventory_number
+    )
     return db.scalar(stmt)
 
 
@@ -59,7 +65,9 @@ def list_devices(
     if device_ids:
         loan_stmt = (
             select(models.Loan)
-            .where(models.Loan.device_id.in_(device_ids), models.Loan.returned_at.is_(None))
+            .where(
+                models.Loan.device_id.in_(device_ids), models.Loan.returned_at.is_(None)
+            )
             .order_by(models.Loan.loaned_at.desc())
         )
         loans = db.scalars(loan_stmt).all()
@@ -81,7 +89,9 @@ def create_device(db: Session, device: schemas.DeviceCreate) -> models.Device:
     return db_device
 
 
-def update_device(db: Session, db_device: models.Device, payload: schemas.DeviceUpdate) -> models.Device:
+def update_device(
+    db: Session, db_device: models.Device, payload: schemas.DeviceUpdate
+) -> models.Device:
     for key, value in payload.dict(exclude_unset=True).items():
         setattr(db_device, key, value)
     db.commit()
@@ -98,7 +108,9 @@ def list_device_types(db: Session) -> List[models.DeviceType]:
     return db.scalars(select(models.DeviceType)).all()
 
 
-def create_device_type(db: Session, payload: schemas.DeviceTypeCreate) -> models.DeviceType:
+def create_device_type(
+    db: Session, payload: schemas.DeviceTypeCreate
+) -> models.DeviceType:
     obj = models.DeviceType(**payload.dict())
     db.add(obj)
     db.commit()
@@ -111,10 +123,14 @@ def list_statuses(db: Session) -> List[models.DeviceStatus]:
 
 
 def get_status_by_name(db: Session, name: str) -> Optional[models.DeviceStatus]:
-    return db.scalar(select(models.DeviceStatus).where(models.DeviceStatus.name == name))
+    return db.scalar(
+        select(models.DeviceStatus).where(models.DeviceStatus.name == name)
+    )
 
 
-def create_status(db: Session, payload: schemas.DeviceStatusCreate) -> models.DeviceStatus:
+def create_status(
+    db: Session, payload: schemas.DeviceStatusCreate
+) -> models.DeviceStatus:
     obj = models.DeviceStatus(**payload.dict())
     db.add(obj)
     db.commit()
@@ -136,7 +152,11 @@ def list_roles(db: Session) -> List[models.Role]:
 
 
 def get_user(db: Session, username: str) -> Optional[models.User]:
-    return db.scalar(select(models.User).where(models.User.username == username).options(selectinload(models.User.roles)))
+    return db.scalar(
+        select(models.User)
+        .where(models.User.username == username)
+        .options(selectinload(models.User.roles))
+    )
 
 
 def upsert_user_with_roles(
@@ -202,7 +222,9 @@ def update_user_profile(
 
 def _check_security(device: models.Device, user_roles: List[str]):
     level = device.security_level or schemas.SecurityLevel.standard.value
-    rule = SECURITY_RULES.get(level, SECURITY_RULES[schemas.SecurityLevel.standard.value])
+    rule = SECURITY_RULES.get(
+        level, SECURITY_RULES[schemas.SecurityLevel.standard.value]
+    )
     required = rule["min_roles"]
     if required is None:
         return
@@ -250,7 +272,10 @@ def close_loan(
 
     loan_stmt = (
         select(models.Loan)
-        .where(models.Loan.device_id == payload.device_id, models.Loan.returned_at.is_(None))
+        .where(
+            models.Loan.device_id == payload.device_id,
+            models.Loan.returned_at.is_(None),
+        )
         .order_by(models.Loan.loaned_at.desc())
     )
     loan = db.scalar(loan_stmt)

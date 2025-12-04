@@ -13,7 +13,9 @@ def main():
     bind_dn = settings.ldap_bind_dn or os.getenv("LDAP_TEST_BIND_DN")
     bind_pw = settings.ldap_bind_password or os.getenv("LDAP_TEST_BIND_PASSWORD")
     if not bind_dn or not bind_pw:
-        print("Erreur: LDAP_BIND_DN / LDAP_BIND_PASSWORD manquants (ou LDAP_TEST_BIND_*)")
+        print(
+            "Erreur: LDAP_BIND_DN / LDAP_BIND_PASSWORD manquants (ou LDAP_TEST_BIND_*)"
+        )
         return
 
     given = os.getenv("LDAP_TEST_GIVENNAME") or input("givenName: ").strip()
@@ -34,13 +36,31 @@ def main():
             ok = conn.search(
                 search_base=settings.ldap_search_base,
                 search_filter=search_filter,
-                attributes=["sAMAccountName", "cn", "uid", "mail", "givenName", "sn", "distinguishedName"],
+                attributes=[
+                    "sAMAccountName",
+                    "cn",
+                    "uid",
+                    "mail",
+                    "givenName",
+                    "sn",
+                    "distinguishedName",
+                ],
             )
-            print(f"Search ok? {ok}, entries: {len(conn.entries) if conn.entries else 0}")
+            print(
+                f"Search ok? {ok}, entries: {len(conn.entries) if conn.entries else 0}"
+            )
             if conn.entries:
                 entry = conn.entries[0]
                 print("First entry DN:", entry.entry_dn)
-                for attr in ["sAMAccountName", "cn", "uid", "mail", "givenName", "sn", "distinguishedName"]:
+                for attr in [
+                    "sAMAccountName",
+                    "cn",
+                    "uid",
+                    "mail",
+                    "givenName",
+                    "sn",
+                    "distinguishedName",
+                ]:
                     val = entry.entry_attributes_as_dict.get(attr)
                     print(f"  {attr}: {val}")
     except Exception as exc:

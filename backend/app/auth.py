@@ -42,27 +42,62 @@ def ldap_auth_and_profile(username: str, password: str, settings: Settings) -> d
                 found = conn.search(
                     search_base=settings.ldap_search_base,
                     search_filter=search_filter,
-                    attributes=["cn", "uid", "sAMAccountName", "distinguishedName", "mail", "givenName", "sn"],
+                    attributes=[
+                        "cn",
+                        "uid",
+                        "sAMAccountName",
+                        "distinguishedName",
+                        "mail",
+                        "givenName",
+                        "sn",
+                    ],
                 )
                 if not found or not conn.entries:
-                    raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid LDAP credentials")
+                    raise HTTPException(
+                        status_code=status.HTTP_401_UNAUTHORIZED,
+                        detail="Invalid LDAP credentials",
+                    )
                 user_dn = str(conn.entries[0].entry_dn)
 
         # Bind avec les credentials utilisateur
-        with Connection(server, user=user_dn, password=password, auto_bind=True) as conn_user:
+        with Connection(
+            server, user=user_dn, password=password, auto_bind=True
+        ) as conn_user:
             found = conn_user.search(
                 search_base=settings.ldap_search_base,
                 search_filter=search_filter,
-                attributes=["displayName", "givenName", "sn", "cn", "mail", "sAMAccountName"],
+                attributes=[
+                    "displayName",
+                    "givenName",
+                    "sn",
+                    "cn",
+                    "mail",
+                    "sAMAccountName",
+                ],
             )
             if not found or not conn_user.entries:
-                raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid LDAP credentials")
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Invalid LDAP credentials",
+                )
             attrs = conn_user.entries[0].entry_attributes_as_dict
             first_name = attrs.get("givenName")
+            if isinstance(first_name, list):
+                first_name = first_name[0] if first_name else None
             last_name = attrs.get("sn")
+            if isinstance(last_name, list):
+                last_name = last_name[0] if last_name else None
             email = attrs.get("mail")
-            username_out = attrs.get("sAMAccountName") or username
-            display_name = (attrs.get("displayName") or " ".join(filter(None, [first_name, last_name])) or username_out)
+            if isinstance(email, list):
+                email = email[0] if email else None
+            username_out = attrs.get("sAMAccountName")
+            if isinstance(username_out, list):
+                username_out = username_out[0] if username_out else None
+            username_out = username_out or username
+            display_name_attr = attrs.get("displayName")
+            if isinstance(display_name_attr, list):
+                display_name_attr = display_name_attr[0] if display_name_attr else None
+            display_name = display_name_attr or " ".join(filter(None, [first_name, last_name])) or username_out
             return {
                 "username": username_out,
                 "email": email,
@@ -74,14 +109,18 @@ def ldap_auth_and_profile(username: str, password: str, settings: Settings) -> d
         raise
     except Exception as exc:
         logger.warning("LDAP auth/profile error: %s", exc)
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid LDAP credentials")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid LDAP credentials"
+        )
 
 
 def create_access_token(data: dict, settings: Settings) -> str:
     to_encode = data.copy()
     expire = datetime.utcnow() + timedelta(minutes=settings.jwt_expiration_minutes)
     to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
+    encoded_jwt = jwt.encode(
+        to_encode, settings.jwt_secret_key, algorithm=settings.jwt_algorithm
+    )
     return encoded_jwt
 
 
@@ -93,7 +132,10 @@ def _get_user_from_db(username: str):
         return None
 
 
-def get_current_user(token: str | None = Depends(oauth2_scheme), settings: Settings = Depends(get_settings)):
+def get_current_user(
+    token: str | None = Depends(oauth2_scheme),
+    settings: Settings = Depends(get_settings),
+):
     if settings.auth_disabled:
         # Dev mode: no token required, fallback to seeded test user if present in DB.
         try:
@@ -102,7 +144,11 @@ def get_current_user(token: str | None = Depends(oauth2_scheme), settings: Setti
             with SessionLocal() as db:
                 test_user = db.get(models.TestUser, settings.dev_user_id)
                 if not test_user:
-                    test_user = db.query(models.TestUser).order_by(models.TestUser.id.asc()).first()
+                    test_user = (
+                        db.query(models.TestUser)
+                        .order_by(models.TestUser.id.asc())
+                        .first()
+                    )
                 if test_user:
                     return {
                         "id": test_user.id,
@@ -123,8 +169,11 @@ def get_current_user(token: str | None = Depends(oauth2_scheme), settings: Setti
         # No token provided -> reject
         raise credentials_exception
     try:
-        payload = jwt.decode(token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm])
-        username: Optional[str] = payload.get("sub")
+        payload = jwt.decode(
+            token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm]
+        )
+        username_raw = payload.get("sub")
+        username: Optional[str] = username_raw[0] if isinstance(username_raw, list) else username_raw
         if username is None:
             raise credentials_exception
     except JWTError:
@@ -147,13 +196,20 @@ def get_current_user(token: str | None = Depends(oauth2_scheme), settings: Setti
     }
 
 
-def login(form_data: OAuth2PasswordRequestForm = Depends(), settings: Settings = Depends(get_settings)):
+def login(
+    form_data: OAuth2PasswordRequestForm = Depends(),
+    settings: Settings = Depends(get_settings),
+):
     if settings.auth_disabled:
         user = {"username": settings.dev_user, "roles": settings.dev_roles}
-        access_token = create_access_token({"sub": user["username"], "roles": user["roles"]}, settings)
+        access_token = create_access_token(
+            {"sub": user["username"], "roles": user["roles"]}, settings
+        )
         return {"access_token": access_token, "token_type": "bearer"}
 
-    profile = ldap_auth_and_profile(form_data.username, form_data.password, settings=settings)
+    profile = ldap_auth_and_profile(
+        form_data.username, form_data.password, settings=settings
+    )
     user_username = profile.get("username") or form_data.username
     email = profile.get("email")
     first_name = profile.get("first_name")

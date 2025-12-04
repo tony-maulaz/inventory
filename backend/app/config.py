@@ -15,7 +15,9 @@ class Settings(BaseSettings):
     jwt_expiration_minutes: int = 60 * 12
 
     ldap_server: str = Field(default="ldap://localhost:389", env="LDAP_SERVER")
-    ldap_user_dn_template: str = Field(default="uid={username},ou=people,dc=example,dc=org")
+    ldap_user_dn_template: str = Field(
+        default="uid={username},ou=people,dc=example,dc=org"
+    )
     ldap_search_base: str = Field(default="ou=people,dc=example,dc=org")
     ldap_search_filter: str = Field(default="(uid={username})")
     ldap_bind_dn: str | None = Field(default=None, env="LDAP_BIND_DN")

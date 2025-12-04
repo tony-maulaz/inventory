@@ -14,7 +14,11 @@ def list_types(db: Session = Depends(get_db), user=Depends(get_user)):
 
 
 @router.post("/types", response_model=schemas.DeviceTypeRead)
-def create_type(payload: schemas.DeviceTypeCreate, db: Session = Depends(get_db), user=Depends(get_user)):
+def create_type(
+    payload: schemas.DeviceTypeCreate,
+    db: Session = Depends(get_db),
+    user=Depends(get_user),
+):
     return crud.create_device_type(db, payload)
 
 
@@ -24,7 +28,11 @@ def list_statuses(db: Session = Depends(get_db), user=Depends(get_user)):
 
 
 @router.post("/statuses", response_model=schemas.DeviceStatusRead)
-def create_status(payload: schemas.DeviceStatusCreate, db: Session = Depends(get_db), user=Depends(get_user)):
+def create_status(
+    payload: schemas.DeviceStatusCreate,
+    db: Session = Depends(get_db),
+    user=Depends(get_user),
+):
     return crud.create_status(db, payload)
 
 
