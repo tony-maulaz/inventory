@@ -9,7 +9,7 @@ Application monopage permettant de gérer les appareils en stock et leurs prêts
 
 ## Configuration
 1. Copier `.env.example` en `.env` (racine) et ajuster au besoin :
-   - `DATABASE_URL` : URL SQLAlchemy Postgres
+   - `DATABASE_URL` : URL SQLAlchemy Postgres. Laisse cette variable vide/commentée pour utiliser les valeurs par défaut du profil docker (db-dev en dev, db-prod/staging en prod). N’active une URL custom que dans un fichier d’env dédié (`.env.prod`, `.env.staging`, etc.).
    - `AUTH_DISABLED=true` pour le mode dev sans authentification (un utilisateur simulé est injecté).
    - Variables LDAP (`LDAP_SERVER`, `LDAP_USER_DN_TEMPLATE`, …) pour l'auth réelle.
    - `DEV_ROLES` attendu au format JSON (ex: `["admin"]`).
@@ -54,6 +54,10 @@ docker compose --profile prod up --build
 ### Modes recommandés
 - **Dev local** : `docker compose --profile dev up --build` (front hot-reload 5173, API 8000). Base dev `db-dev`. Si tu utilises Alembic : `docker compose exec backend poetry run alembic upgrade head` puis `docker compose exec backend python init_db.py` pour les données de démo.
 - **Staging / test sur serveur** : utiliser le profil `prod` (stack identique à la prod) avec un vhost dédié (ex: `dev.exemple.ch`). Commande : `docker compose --profile prod up --build -d`. Côté front, `VITE_API_URL` = `https://dev.exemple.ch/api`. Proxy Nginx : vhost `dev.exemple.ch` vers le front (port 4173 de la stack prod) et `/api` vers le backend (8000).
+- Si tu exposes en HTTPS sur une IP/domaine (ex: `https://10.190.177.77`), assure-toi de construire le front avec `VITE_API_URL=https://10.190.177.77/api` (pas en HTTP) pour éviter le mixed content/CORS.
+ - Pour tester LDAP depuis un conteneur, passe une URL custom à l’exec si besoin :  
+   `docker compose ... exec -T -e LDAP_SERVER=ldap://ldap.heig-vd.ch:389 backend-staging poetry run python ldap_debug.py`  
+   (le script force TLS 1.2 pour ldaps).
 - **Prod** : profil `prod` avec les vraies variables (`DATABASE_URL` prod/managée, `JWT_SECRET_KEY`, `AUTH_DISABLED=false`). `VITE_API_URL` = `https://exemple.ch/api`. Proxy Nginx : vhost `exemple.ch` vers le front (4173) et `/api` vers le backend (8000).
 
 ### Faire tourner deux stacks prod-like (prod + staging) sur le même serveur

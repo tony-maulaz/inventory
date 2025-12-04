@@ -25,7 +25,8 @@ def ldap_auth_and_profile(username: str, password: str, settings: Settings) -> d
     Recherche l'utilisateur via le compte de service (si fourni), bind avec son mot de passe,
     et retourne les attributs utiles.
     """
-    tls_config = Tls(validate=ssl.CERT_NONE)
+    # Force TLS 1.2 for compat with some AD/LDAPS endpoints that reset on newer defaults
+    tls_config = Tls(validate=ssl.CERT_NONE, version=ssl.PROTOCOL_TLSv1_2)
     search_filter = settings.ldap_search_filter.format(username=username)
     uri = parse_uri(settings.ldap_server)
     use_ssl = uri["ssl"]
