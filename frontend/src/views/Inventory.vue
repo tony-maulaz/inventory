@@ -132,7 +132,7 @@ async function loadUsers() {
 
 async function loadManagedUsers() {
   try {
-    const res = await api.get("/users");
+    const res = await api.get("/users/");
     managedUsers.value = res.data;
   } catch (err) {
     if (!handleAuthError(err)) {
