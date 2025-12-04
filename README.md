@@ -124,31 +124,36 @@ sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
 ```nginx
 server {
     listen 443 ssl;
-    server_name dev.exemple.ch;
+    server_name 10.190.177.77;
 
-    ssl_certificate     /etc/nginx/ssl/dev-exemple-ch.crt;
-    ssl_certificate_key /etc/nginx/ssl/dev-exemple-ch.key;
+    ssl_certificate     /etc/nginx/ssl/staging-ip.crt;
+    ssl_certificate_key /etc/nginx/ssl/staging-ip.key;
 
-    # Front (staging)
+    # Redirige vers HTTPS si certifs présents (optionnel)
+    # return 301 https://$host$request_uri;
+
+    # Front (prod) servi par le conteneur frontend sur 4173
     location / {
-        proxy_pass http://127.0.0.1:4174;
+        proxy_pass http://127.0.0.1:5174;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
     }
 
-    # API staging
+    # API prod (proxy /api vers backend-prod:8000)
     location /api/ {
         rewrite ^/api/(.*)$ /$1 break;
         proxy_pass http://127.0.0.1:8001;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;  # important
+        proxy_set_header X-Forwarded-Host $host;
     }
 }
-
 # Redirection HTTP → HTTPS
 server {
     listen 80;
-    server_name dev.exemple.ch;
+    server_name 10.190.177.77;
     return 301 https://$host$request_uri;
 }
 ```
