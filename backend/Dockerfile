@@ -9,7 +9,7 @@ WORKDIR /code
 
 RUN pip install --no-cache-dir poetry
 
-COPY pyproject.toml poetry.lock ./
+COPY backend/pyproject.toml backend/poetry.lock ./
 RUN poetry install --no-root
 
 # Trust HEIG internal CAs (for LDAP) baked into the image
@@ -18,10 +18,10 @@ COPY HEIG-RootCA.crt HEIG-SCA01.crt /usr/local/share/ca-certificates/extra/
 RUN update-ca-certificates
 
 # App source
-COPY app ./app
-COPY init_db.py .
-COPY alembic.ini .
-COPY alembic ./alembic
-COPY ldap_debug.py .
+COPY backend/app ./app
+COPY backend/init_db.py .
+COPY backend/alembic.ini .
+COPY backend/alembic ./alembic
+COPY backend/ldap_debug.py .
 
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
