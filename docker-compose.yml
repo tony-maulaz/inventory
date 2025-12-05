@@ -79,9 +79,10 @@ services:
       - dev
 
   frontend:
-    build: ./frontend
-    environment:
-      VITE_API_URL: ${VITE_API_URL:-http://backend-prod:8000}
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://backend-prod:8000}
     ports:
       - "4173:4173"
     depends_on:

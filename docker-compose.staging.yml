@@ -30,9 +30,10 @@ services:
       - staging
 
   frontend-staging:
-    build: ./frontend
-    environment:
-      VITE_API_URL: ${VITE_API_URL:-http://backend-staging:8000}
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://backend-staging:8000}
     ports:
       - "5174:4173"
     depends_on:
