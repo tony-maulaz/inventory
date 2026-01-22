@@ -1,20 +1,18 @@
 services:
   db:
     environment:
-      POSTGRES_DB: inventory_staging
+      POSTGRES_DB: inventory_prod
     ports:
-      - "5434:5432"
+      - "5433:5432"
     volumes:
-      - db-data-staging:/var/lib/postgresql/data
+      - db-data-prod:/var/lib/postgresql/data
 
   backend:
     environment:
-      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg2://postgres:postgres@db:5432/inventory_staging}
+      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg2://postgres:postgres@db:5432/inventory_prod}
       AUTH_DISABLED: "false"
-      ENVIRONMENT: staging
+      ENVIRONMENT: prod
     command: poetry run uvicorn app.main:app --host 0.0.0.0 --port 8000 --proxy-headers
-    ports:
-      - "8001:8000"
     depends_on:
       - db
 
@@ -24,9 +22,9 @@ services:
       args:
         VITE_API_URL: ${VITE_API_URL:-http://backend:8000}
     ports:
-      - "5174:4173"
+      - "4173:4173"
     depends_on:
       - backend
 
 volumes:
-  db-data-staging:
+  db-data-prod:

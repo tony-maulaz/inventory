@@ -1,0 +1,30 @@
+services:
+  db:
+    environment:
+      POSTGRES_DB: inventory_dev
+    ports:
+      - "5432:5432"
+
+  backend:
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg2://postgres:postgres@db:5432/inventory_dev}
+      AUTH_DISABLED: ${AUTH_DISABLED:-true}
+      ENVIRONMENT: dev
+    volumes:
+      - ./backend:/code
+    command: poetry run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    depends_on:
+      - db
+
+  frontend:
+    image: node:18
+    working_dir: /app
+    command: sh -c "npm install && npm run dev -- --host --port 5173"
+    volumes:
+      - ./frontend:/app
+    environment:
+      VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
