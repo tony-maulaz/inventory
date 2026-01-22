@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import List, Optional, Tuple
 from sqlalchemy import select, or_, func
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.orm import Session, selectinload, load_only
 
 from . import models, schemas
 
@@ -64,7 +64,11 @@ def list_devices(
     device_ids = [d.id for d in items]
     if device_ids:
         loan_stmt = (
-            select(models.Loan).options(selectinload(models.Loan.borrower))
+            select(models.Loan).options(
+                selectinload(models.Loan.borrower).load_only(
+                    models.User.first_name, models.User.last_name, models.User.username
+                )
+            )
             .where(
                 models.Loan.device_id.in_(device_ids), models.Loan.returned_at.is_(None)
             )
