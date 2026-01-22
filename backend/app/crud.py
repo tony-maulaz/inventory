@@ -251,12 +251,7 @@ def create_loan(
     borrower_user = db.get(models.User, payload.borrower_id)
     if not borrower_user:
         raise ValueError("Borrower not found")
-    borrower_display_name = (
-        payload.borrower_display_name or borrower_user.display_name
-    )
-    loan_data = payload.dict()
-    loan_data["borrower_display_name"] = borrower_display_name
-    loan = models.Loan(**loan_data)
+    loan = models.Loan(**payload.dict())
     device.status_id = status_loaned.id
     db.add(loan)
     db.commit()

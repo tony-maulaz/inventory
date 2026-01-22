@@ -97,7 +97,6 @@ class DeviceRead(DeviceBase):
 class LoanBase(BaseModel):
     device_id: int
     borrower_id: int
-    borrower_display_name: Optional[str] = None
     usage_location: Optional[str] = None
     due_date: Optional[datetime] = None
     notes: Optional[str] = None

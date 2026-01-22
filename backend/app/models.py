@@ -97,7 +97,6 @@ class Loan(Base):
     id = Column(Integer, primary_key=True, index=True)
     device_id = Column(Integer, ForeignKey("devices.id"), nullable=False, index=True)
     borrower_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
-    borrower_display_name = Column(String(200), nullable=True)
     usage_location = Column(String(200), nullable=True)
     loaned_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     due_date = Column(DateTime, nullable=True)
@@ -106,6 +105,12 @@ class Loan(Base):
 
     device = relationship("Device", back_populates="loans")
     borrower = relationship("User", back_populates="loans")
+
+    @property
+    def borrower_display_name(self) -> str | None:
+        if not self.borrower:
+            return None
+        return self.borrower.display_name
 
 
 class TestUser(Base):

@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from .. import crud, schemas, models
 from ..dependencies import get_db, get_user
@@ -23,7 +23,12 @@ def _get_status(db: Session, name: str):
 
 @router.get("/", response_model=list[schemas.LoanRead])
 def list_loans(db: Session = Depends(get_db), user=Depends(get_user)):
-    return db.scalars(select(models.Loan).order_by(models.Loan.loaned_at.desc())).all()
+    stmt = (
+        select(models.Loan)
+        .options(selectinload(models.Loan.borrower))
+        .order_by(models.Loan.loaned_at.desc())
+    )
+    return db.scalars(stmt).all()
 
 
 @router.post("/loan", response_model=schemas.LoanRead)
