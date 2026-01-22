@@ -64,7 +64,7 @@ def list_devices(
     device_ids = [d.id for d in items]
     if device_ids:
         loan_stmt = (
-            select(models.Loan)
+            select(models.Loan).options(selectinload(models.Loan.borrower))
             .where(
                 models.Loan.device_id.in_(device_ids), models.Loan.returned_at.is_(None)
             )
