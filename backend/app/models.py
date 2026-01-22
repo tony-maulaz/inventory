@@ -32,6 +32,7 @@ class User(Base):
     last_name = Column(String(200), nullable=True)
 
     roles = relationship("Role", secondary="user_roles", back_populates="users")
+    loans = relationship("Loan", back_populates="borrower")
 
     @property
     def display_name(self) -> str:
@@ -95,7 +96,7 @@ class Loan(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     device_id = Column(Integer, ForeignKey("devices.id"), nullable=False, index=True)
-    borrower = Column(String(100), nullable=False)
+    borrower_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     borrower_display_name = Column(String(200), nullable=True)
     usage_location = Column(String(200), nullable=True)
     loaned_at = Column(DateTime, default=datetime.utcnow, nullable=False)
@@ -104,6 +105,7 @@ class Loan(Base):
     notes = Column(Text, nullable=True)
 
     device = relationship("Device", back_populates="loans")
+    borrower = relationship("User", back_populates="loans")
 
 
 class TestUser(Base):

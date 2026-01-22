@@ -1,7 +1,7 @@
 from datetime import datetime, date, time
 from typing import Optional, List
 from enum import Enum
-from pydantic import BaseModel, validator
+from pydantic import BaseModel, Field, validator
 
 
 class SecurityLevel(str, Enum):
@@ -49,13 +49,19 @@ class DeviceStatusRead(DeviceStatusBase):
 
 
 class DeviceBase(BaseModel):
-    inventory_number: str
-    name: str
+    inventory_number: str = Field(..., min_length=2)
+    name: str = Field(..., min_length=2)
     description: Optional[str] = None
     location: Optional[str] = None
     type_id: int
     status_id: int
     security_level: SecurityLevel = SecurityLevel.standard
+
+    @validator("inventory_number", "name", pre=True)
+    def strip_device_text(cls, v):
+        if isinstance(v, str):
+            return v.strip()
+        return v
 
 
 class DeviceCreate(DeviceBase):
@@ -63,13 +69,19 @@ class DeviceCreate(DeviceBase):
 
 
 class DeviceUpdate(BaseModel):
-    inventory_number: Optional[str] = None
-    name: Optional[str] = None
+    inventory_number: Optional[str] = Field(None, min_length=2)
+    name: Optional[str] = Field(None, min_length=2)
     description: Optional[str] = None
     location: Optional[str] = None
     type_id: Optional[int] = None
     status_id: Optional[int] = None
     security_level: Optional[SecurityLevel] = None
+
+    @validator("inventory_number", "name", pre=True)
+    def strip_device_text(cls, v):
+        if isinstance(v, str):
+            return v.strip()
+        return v
 
 
 class DeviceRead(DeviceBase):
@@ -84,7 +96,7 @@ class DeviceRead(DeviceBase):
 
 class LoanBase(BaseModel):
     device_id: int
-    borrower: str
+    borrower_id: int
     borrower_display_name: Optional[str] = None
     usage_location: Optional[str] = None
     due_date: Optional[datetime] = None
@@ -123,7 +135,7 @@ class LoanReturn(BaseModel):
 class LoanRead(BaseModel):
     id: int
     device_id: int
-    borrower: str
+    borrower_id: int
     borrower_display_name: Optional[str] = None
     usage_location: Optional[str] = None
     loaned_at: datetime
