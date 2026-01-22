@@ -78,7 +78,7 @@ def list_devices(
         latest_open = {}
         for loan in loans:
             if loan.device_id not in latest_open:
-                latest_open[loan.device_id] = loan
+                latest_open[loan.device_id] = schemas.LoanRead.from_orm(loan)
         for d in items:
             if d.id in latest_open:
                 setattr(d, "current_loan", latest_open[d.id])
